@@ -1,0 +1,30 @@
+name: LootRoll
+version: '1.0'
+main: me.newtale.lootRoll.LootRoll
+api-version: '1.21'
+authors: [ Retside ]
+website: https://newtale.me/
+depend: [ProtocolLib, Parties, MythicMobs]
+softdepend: [MMOItems]
+
+commands:
+  lootroll:
+    description: Main LootRoll command
+    usage: /lootroll [reload]
+    permission: lootroll.admin
+  roll:
+    description: Roll for loot
+    usage: /roll [item_name]
+    aliases: [r]
+  rollf:
+    description: Fallback roll for loot items (lower priority)
+    usage: /rollf [item_name]
+    aliases: [ rf ]
+  rollcancel:
+    description: Cancel a roll
+    usage: /rollcancel [item_name]
+    aliases: [ rc ]
+permissions:
+  lootroll.admin:
+    description: Allows use of admin commands
+    default: op

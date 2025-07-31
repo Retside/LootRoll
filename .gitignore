@@ -1,3 +1,6 @@
+# User-specific stuff
+.idea/
+
 # Compiled class file
 *.class
 
@@ -22,3 +25,17 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Generaged files
+
+build/
+
+# Gradle
+.gradle/
+gradle.properties
+
+# Exceptions
+!gradle/wrapper/*.jar
+
+# Modules
+/modules/
