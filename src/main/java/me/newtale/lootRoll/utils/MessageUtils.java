@@ -19,7 +19,7 @@ public class MessageUtils {
 
     public static Component processMessageWithVariables(String messageTemplate, String itemName, String itemNameNoColors, ItemStack item, TagResolver... additionalResolvers) {
         if (itemNameNoColors != null) {
-            messageTemplate = messageTemplate.replace("{item_name}", itemNameNoColors);
+            messageTemplate = messageTemplate.replace("<item_name>", itemNameNoColors);
         }
 
         MiniMessage miniMessage = MiniMessage.miniMessage();

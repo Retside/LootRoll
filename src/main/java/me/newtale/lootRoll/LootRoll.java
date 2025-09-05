@@ -1,7 +1,5 @@
 package me.newtale.lootRoll;
 
-import com.alessiodp.parties.api.Parties;
-import com.alessiodp.parties.api.interfaces.PartiesAPI;
 import me.newtale.lootRoll.commands.RollCancelCommand;
 import me.newtale.lootRoll.commands.RollCommand;
 import me.newtale.lootRoll.commands.RollFCommand;
@@ -17,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Objects;
 
 public final class LootRoll extends JavaPlugin {
 
@@ -46,15 +45,16 @@ public final class LootRoll extends JavaPlugin {
 
                     case "info":
                         sender.sendMessage(ChatColor.YELLOW + " === LootRoll ===");
-                        sender.sendMessage(ChatColor.GRAY + " Версія: " + ChatColor.WHITE + "1.0");
-                        sender.sendMessage(ChatColor.GRAY + " Налаштовані моби: " + ChatColor.WHITE + lootManager.getTotalMobCount());
-                        sender.sendMessage(ChatColor.GRAY + " Файли конфігурацій: " + ChatColor.WHITE + configManager.getDropConfigs().size());
-                        sender.sendMessage(ChatColor.GRAY + " Дистанція ролу: " + ChatColor.WHITE + configManager.getRollDistance());
-                        sender.sendMessage(ChatColor.GRAY + " Час ролу: " + ChatColor.WHITE + configManager.getRollTime() + "s");
+                        sender.sendMessage(ChatColor.GRAY + " Version " + ChatColor.WHITE + "1.0");
+                        sender.sendMessage(ChatColor.GRAY + " Mobs: " + ChatColor.WHITE + lootManager.getTotalMobCount());
+                        sender.sendMessage(ChatColor.GRAY + " Configs: " + ChatColor.WHITE + configManager.getDropConfigs().size());
+                        sender.sendMessage(ChatColor.GRAY + " Roll distance: " + ChatColor.WHITE + configManager.getRollDistance());
+                        sender.sendMessage(ChatColor.GRAY + " Roll time: " + ChatColor.WHITE + configManager.getRollTime() + "s");
+                        sender.sendMessage(ChatColor.GRAY + " Party system: " + ChatColor.WHITE + partyManager.getPartyType().name());
                         return true;
 
                     case "list":
-                        sender.sendMessage(ChatColor.YELLOW + " === Налаштовані моби ===");
+                        sender.sendMessage(ChatColor.YELLOW + " === Mobs ===");
                         if (lootManager.getTotalMobCount() == 0) {
                             sender.sendMessage(ChatColor.RED + "No mobs configured!");
                         } else {
@@ -67,7 +67,7 @@ public final class LootRoll extends JavaPlugin {
                         return true;
 
                     case "drops":
-                        sender.sendMessage(ChatColor.YELLOW + " === Налаштовані дропи ===");
+                        sender.sendMessage(ChatColor.YELLOW + " === Drops ===");
                         if (configManager.getDropConfigs().isEmpty()) {
                             sender.sendMessage(ChatColor.RED + "No drop configuration files found!");
                         } else {
@@ -79,13 +79,13 @@ public final class LootRoll extends JavaPlugin {
                 }
             }
 
-            sender.sendMessage(ChatColor.YELLOW + " NewRPG LootRoll v1.0");
-            sender.sendMessage(ChatColor.YELLOW + " Використання:");
+            sender.sendMessage(ChatColor.YELLOW + " LootRoll v1.0");
+            sender.sendMessage(ChatColor.YELLOW + " Usage:");
             sender.sendMessage(ChatColor.GRAY + " ");
-            sender.sendMessage(ChatColor.WHITE + "  /lootroll reload - Перезавантажити конфігурацію");
-            sender.sendMessage(ChatColor.WHITE + "  /lootroll info - Інформація про плагін");
-            sender.sendMessage(ChatColor.WHITE + "  /lootroll list - Список конфігурацій мобів");
-            sender.sendMessage(ChatColor.WHITE + "  /lootroll drops - Список конфігурацій дропів");
+            sender.sendMessage(ChatColor.WHITE + "  /lootroll reload - Reload config");
+            sender.sendMessage(ChatColor.WHITE + "  /lootroll info - Plugin info");
+            sender.sendMessage(ChatColor.WHITE + "  /lootroll list - Mobs config list");
+            sender.sendMessage(ChatColor.WHITE + "  /lootroll drops - Drops config list");
             sender.sendMessage(ChatColor.WHITE + " ");
             return true;
         }
@@ -109,10 +109,9 @@ public final class LootRoll extends JavaPlugin {
         if (!checkDependencies()) {
             return;
         }
-        PartiesAPI partiesAPI = Parties.getApi();
 
-        // Initialize managers
-        partyManager = new PartyManager(partiesAPI, configManager);
+        // Initialize managers (теперь PartyManager сам определяет какую систему использовать)
+        partyManager = new PartyManager(configManager);
         lootManager = new LootManager(this, configManager);
         particleEffectManager = new ParticleEffectManager(this);
         rollManager = new RollManager(this, configManager, partyManager, particleEffectManager);
@@ -121,9 +120,9 @@ public final class LootRoll extends JavaPlugin {
         registerCommands();
         registerListeners();
 
-        getLogger().info("NewRPG Loot System enabled! Developed by Ney #ney___");
         getLogger().info("Loaded " + lootManager.getTotalMobCount() + " mobs from " +
                 configManager.getDropConfigs().size() + " drop configuration files");
+        getLogger().info("Loot System enabled! Developed by Ney #ney___");
     }
 
     @Override
@@ -131,7 +130,7 @@ public final class LootRoll extends JavaPlugin {
         if (rollManager != null) {
             rollManager.cleanup();
         }
-        getLogger().info("NewRPG Loot System disabled!");
+        getLogger().info("Loot System disabled!");
     }
 
     private boolean checkDependencies() {
@@ -141,16 +140,31 @@ public final class LootRoll extends JavaPlugin {
             return false;
         }
 
-        if (Bukkit.getPluginManager().getPlugin("Parties") == null) {
-            getLogger().severe("Parties plugin not found! Disabling...");
-            getServer().getPluginManager().disablePlugin(this);
-            return false;
-        }
-
         if (Bukkit.getPluginManager().getPlugin("MythicMobs") == null) {
             getLogger().severe("MythicMobs plugin not found! Disabling...");
             getServer().getPluginManager().disablePlugin(this);
             return false;
+        }
+
+        // Проверяем какая party система должна быть использована
+        String partySystemType = configManager.getPartySystem().toLowerCase();
+
+        switch (partySystemType) {
+            case "mmocore":
+                if (Bukkit.getPluginManager().getPlugin("MMOCore") == null) {
+                    getLogger().severe("MMOCore plugin not found but specified in config! Disabling...");
+                    getServer().getPluginManager().disablePlugin(this);
+                    return false;
+                }
+                break;
+            case "parties":
+            default:
+                if (Bukkit.getPluginManager().getPlugin("Parties") == null) {
+                    getLogger().severe("Parties plugin not found! Disabling...");
+                    getServer().getPluginManager().disablePlugin(this);
+                    return false;
+                }
+                break;
         }
 
         if (Bukkit.getPluginManager().getPlugin("MMOItems") == null) {
@@ -167,14 +181,14 @@ public final class LootRoll extends JavaPlugin {
         RollFCommand rollFCommand = new RollFCommand(rollManager);
         RollCancelCommand rollCancelCommand = new RollCancelCommand(rollManager);
 
-        getCommand("roll").setExecutor(rollCommand);
-        getCommand("roll").setTabCompleter(rollCommand);
+        Objects.requireNonNull(getCommand("roll")).setExecutor(rollCommand);
+        Objects.requireNonNull(getCommand("roll")).setTabCompleter(rollCommand);
 
-        getCommand("rollf").setExecutor(rollFCommand);
-        getCommand("rollf").setTabCompleter(rollFCommand);
+        Objects.requireNonNull(getCommand("rollf")).setExecutor(rollFCommand);
+        Objects.requireNonNull(getCommand("rollf")).setTabCompleter(rollFCommand);
 
-        getCommand("rollcancel").setExecutor(rollCancelCommand);
-        getCommand("rollcancel").setTabCompleter(rollCancelCommand);
+        Objects.requireNonNull(getCommand("rollcancel")).setExecutor(rollCancelCommand);
+        Objects.requireNonNull(getCommand("rollcancel")).setTabCompleter(rollCancelCommand);
     }
 
     private void registerListeners() {

@@ -1,12 +1,19 @@
+# Party system to use: 'parties' or 'mmocore'
+# parties - Uses the Parties plugin
+# mmocore - Uses MMOCore party system
+party-system: "parties"
+
+# Distance in blocks in which players can roll for items
 roll-distance: 100.0
 
 # Time in seconds players have to roll for items
 roll-time: 30
 
+
 # Messages
 messages:
   reload-success: " Configuration successfully reloaded!"
-  loot-dropped: "<newline> <green>Item dropped <gray>[</gray><item><gray>]</gray><newline> <gray><hover:show_text:'<gray>Click to claim the item.'><click:run_command:/roll {item_name}><white>Need</click></hover> | <hover:show_text:'<gray>Click to make a non-priority roll.'><click:run_command:/rollf {item_name}><yellow>Won't refuse</click></hover> | <hover:show_text:'<gray>Click to refuse the item.'><click:run_command:/rollcancel {item_name}><red>Refuse</click></hover><newline>"
+  loot-dropped: "<newline> <green>Item dropped <gray>[</gray><item><gray>]</gray><newline> <gray><hover:show_text:'<gray>Click to make priority roll.'><click:run_command:/roll <item_name>><white>Need</click></hover> | <hover:show_text:'<gray>Click to make a non-priority roll.'><click:run_command:/rollf <item_name>><yellow>Won't refuse</click></hover> | <hover:show_text:'<gray>Click to refuse the item.'><click:run_command:/rollcancel <item_name>><red>Refuse</click></hover><newline>"
   countdown: " <gray>Roll for item <gray>[</gray><item><gray>]</gray> will end in <time> seconds!"
   player-rolled: " <yellow>Player <player> rolled <gold><roll></gold> for <gray>[</gray><item><gray>]</gray>"
   player-fallback-rolled: " <yellow>Player <player> rolled <gray><roll></gray> for <gray>[</gray><item><gray>]</gray>"
@@ -14,12 +21,12 @@ messages:
   roll-winner: " <green>Player <player> won <gray>[</gray><item><gray>]</gray> with roll <gold><roll></gold>"
   fallback-roll-winner: " <green>Player <player> won <gray>[</gray><item><gray>]</gray> with roll <gray><roll></gray>"
   available-items: " <gray>Active rolls:"
-  available-item-format: "  <dark_gray>- <click:run_command:/roll {item_name}><gray>[</gray><item><gray>]</gray></click>"
+  available-item-format: "  <dark_gray>- <click:run_command:/roll <item_name>><gray>[</gray><item><gray>]</gray></click>"
   available-items-to-skip: " <gray>Active rolls:"
-  available-skip-item-format: "  <dark_gray>- <click:run_command:/rollcancel {item_name}><gray>[</gray><item><gray>]</gray></click>"
+  available-skip-item-format: "  <dark_gray>- <click:run_command:/rollcancel <item_name>><gray>[</gray><item><gray>]</gray></click>"
   no-active-roll: " <red>No active rolls!"
   no-active-fallback-roll: " <red>No active rolls!"
   no-sessions-to-skip: " <red>No active rolls!"
-  not-in-party: " <red>You must be in a party to use the roll system!"
+  not-in-party: " <red>You must be in a party to use the roll command!"
   no-rolls-unlocked: " <gray>Nobody rolled for <gray>[</gray><item><gray>]</gray>!"
   item-not-found: " <red>Item '<item>' not found!"

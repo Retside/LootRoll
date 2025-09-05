@@ -2,10 +2,10 @@ name: LootRoll
 version: '1.0'
 main: me.newtale.lootRoll.LootRoll
 api-version: '1.21'
-authors: [ Retside ]
+authors: [ Ney ]
 website: https://newtale.me/
-depend: [ProtocolLib, Parties, MythicMobs]
-softdepend: [MMOItems]
+depend: [ProtocolLib, MythicMobs]
+softdepend: [MMOItems, Parties, MMOCore]
 
 commands:
   lootroll:
