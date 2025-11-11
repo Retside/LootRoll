@@ -528,11 +528,6 @@ public class RollManager {
         }
     }
 
-    private Component createLootMessage(String messageTemplate, String itemName, String itemNameNoColors, ItemStack item, TagResolver... additionalResolvers) {
-        return processMessageWithVariables(messageTemplate, itemName, itemNameNoColors, item, additionalResolvers);
-    }
-
-
     public void cleanup() {
         for (BukkitTask timer : rollTimers.values()) {
             if (timer != null && !timer.isCancelled()) {

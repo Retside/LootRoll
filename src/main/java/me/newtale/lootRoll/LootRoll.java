@@ -19,6 +19,8 @@ import java.util.Objects;
 
 public final class LootRoll extends JavaPlugin {
 
+    // LootRoll - A plugin for rolling loot in parties
+
     private ConfigManager configManager;
     private LootManager lootManager;
     private PartyManager partyManager;
