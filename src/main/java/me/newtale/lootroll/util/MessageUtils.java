@@ -1,4 +1,4 @@
-package me.newtale.lootRoll.utils;
+package me.newtale.lootroll.util;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -25,8 +25,9 @@ public class MessageUtils {
         MiniMessage miniMessage = MiniMessage.miniMessage();
         List<TagResolver> resolvers = new ArrayList<>();
 
-        if (item != null && itemName != null) {
-            Component itemComponent = Component.text(itemName)
+        if (item != null) {
+            Component itemDisplayComponent = ItemUtils.getItemDisplayComponent(item);
+            Component itemComponent = itemDisplayComponent
                     .hoverEvent(HoverEvent.showItem(item.asHoverEvent().value()));
             resolvers.add(Placeholder.component("item", itemComponent));
         }

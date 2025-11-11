@@ -1,4 +1,4 @@
-package me.newtale.lootRoll.utils;
+package me.newtale.lootroll.util;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Item;

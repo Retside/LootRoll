@@ -1,8 +1,8 @@
-package me.newtale.lootRoll.managers;
+package me.newtale.lootroll.manager;
 
 import io.lumine.mythic.lib.api.item.NBTItem;
-import me.newtale.lootRoll.models.LootItem;
-import me.newtale.lootRoll.models.MobLootConfig;
+import me.newtale.lootroll.model.LootItem;
+import me.newtale.lootroll.model.MobLootConfig;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.Type;
 import io.lumine.mythic.bukkit.MythicBukkit;
@@ -25,7 +25,10 @@ public class LootManager {
     private final ConfigManager configManager;
     private final Map<String, MobLootConfig> mobLootMap;
 
-    private static final Pattern NEW_FORMAT_PATTERN = Pattern.compile("^(\\w+)\\{([^}]+)}\\s+(\\d+)\\s+([.\\d]+)$");
+    private static final Pattern NEW_FORMAT_PATTERN = Pattern.compile(
+            "^(\\w+)\\{([^}]+)}\\s+(\\d+(?:-\\d+|to\\d+)?)\\s+([\\d.]+)$",
+            Pattern.CASE_INSENSITIVE
+    );
 
     public LootManager(JavaPlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
@@ -36,24 +39,21 @@ public class LootManager {
     public void loadLootConfiguration() {
         mobLootMap.clear();
 
-
         Map<String, FileConfiguration> dropConfigs = configManager.getDropConfigs();
-        int totalMobs = 0;
 
         for (Map.Entry<String, FileConfiguration> entry : dropConfigs.entrySet()) {
             String fileName = entry.getKey();
             FileConfiguration dropConfig = entry.getValue();
-
-
-            int mobsFromFile = loadMobsFromConfig(dropConfig, fileName);
-            totalMobs += mobsFromFile;
+            loadMobsFromConfig(dropConfig, fileName);
         }
-
 
         ConfigurationSection mobsSection = configManager.getConfig().getConfigurationSection("mobs");
         if (mobsSection != null) {
-            int mobsFromMainConfig = loadMobsFromSection(mobsSection, "main config");
-            totalMobs += mobsFromMainConfig;
+            plugin.getLogger().info("Loading mobs from main config section...");
+            int loaded = loadMobsFromSection(mobsSection, "main config");
+            plugin.getLogger().info("Loaded " + loaded + " mobs from main config");
+        } else {
+            plugin.getLogger().info("No 'mobs' section found in main config");
         }
     }
 
@@ -70,6 +70,8 @@ public class LootManager {
 
             int globalMinDrops = mobSection.getInt("min-drops", 0);
             int globalMaxDrops = mobSection.getInt("max-drops", globalMinDrops);
+            boolean overrideVanillaDrops = mobSection.getBoolean("override-vanilla-drops", false);
+            boolean processVanillaDrops = mobSection.getBoolean("process-vanilla-drops", false);
 
             List<LootItem> lootItems = new ArrayList<>();
 
@@ -107,10 +109,17 @@ public class LootManager {
                 }
             }
 
-            if (!lootItems.isEmpty()) {
-                MobLootConfig mobLootConfig = new MobLootConfig(mobId, lootItems, globalMinDrops, globalMaxDrops);
-                mobLootMap.put(mobId, mobLootConfig);
+            if (!lootItems.isEmpty() || processVanillaDrops) {
+                String normalizedId = normalizeMobId(mobId);
+                MobLootConfig mobLootConfig = new MobLootConfig(mobId, lootItems, globalMinDrops, globalMaxDrops, 
+                        overrideVanillaDrops, processVanillaDrops);
+                mobLootMap.put(normalizedId, mobLootConfig);
+                plugin.getLogger().info("Loaded loot for mob: " + mobId + " (normalized: " + normalizedId + ") with " + lootItems.size() + " items" +
+                        (overrideVanillaDrops ? " [override: true]" : "") +
+                        (processVanillaDrops ? " [process-vanilla-drops: true]" : ""));
                 mobCount++;
+            } else {
+                plugin.getLogger().warning("No loot items found for mob: " + mobId);
             }
         }
 
@@ -126,6 +135,8 @@ public class LootManager {
 
             int globalMinDrops = mobSection.getInt("min-drops", 0);
             int globalMaxDrops = mobSection.getInt("max-drops", globalMinDrops);
+            boolean overrideVanillaDrops = mobSection.getBoolean("override-vanilla-drops", false);
+            boolean processVanillaDrops = mobSection.getBoolean("process-vanilla-drops", false);
 
             List<LootItem> lootItems = new ArrayList<>();
 
@@ -162,12 +173,16 @@ public class LootManager {
                 }
             }
 
-            if (!lootItems.isEmpty()) {
-                MobLootConfig mobLootConfig = new MobLootConfig(mobId, lootItems, globalMinDrops, globalMaxDrops);
-                mobLootMap.put(mobId, mobLootConfig);
-                mobCount++;
-                plugin.getLogger().info("Loaded " + lootItems.size() + " loot items for mob '" + mobId + "' from " + source +
-                        " (min-drops: " + globalMinDrops + ", max-drops: " + globalMaxDrops + ")");
+            if (!lootItems.isEmpty() || processVanillaDrops) {
+                String normalizedId = normalizeMobId(mobId);
+                MobLootConfig mobLootConfig = new MobLootConfig(mobId, lootItems, globalMinDrops, globalMaxDrops,
+                        overrideVanillaDrops, processVanillaDrops);
+                mobLootMap.put(normalizedId, mobLootConfig);
+                plugin.getLogger().info("Loaded loot for mob: " + mobId + " (normalized: " + normalizedId + ") with " + lootItems.size() + " items" +
+                        (overrideVanillaDrops ? " [override: true]" : "") +
+                        (processVanillaDrops ? " [process-vanilla-drops: true]" : ""));
+            } else {
+                plugin.getLogger().warning("No loot items found for mob: " + mobId);
             }
         }
 
@@ -176,57 +191,65 @@ public class LootManager {
 
     private LootItem parseNewFormatLoot(String lootLine) {
         try {
-            Matcher matcher = NEW_FORMAT_PATTERN.matcher(lootLine.trim());
+            String trimmed = lootLine.trim();
+            Matcher matcher = NEW_FORMAT_PATTERN.matcher(trimmed);
             if (!matcher.matches()) {
-                plugin.getLogger().warning("Invalid loot format: " + lootLine);
+                plugin.getLogger().warning("Invalid loot format: " + lootLine + " (trimmed: " + trimmed + ")");
                 return null;
             }
 
             String lootType = matcher.group(1).toUpperCase();
             String parameters = matcher.group(2);
-            String amountStr = matcher.group(3); // Може бути "3", "2-5", або "0to3"
+            String amountStr = matcher.group(3); // May be "3", "2-5", or "0to3"
             double chanceDecimal = Double.parseDouble(matcher.group(4));
             double chance = chanceDecimal * 100.0;
 
-            // Парсинг параметрів з фігурних дужок
+            // Parse parameters inside curly braces
             Map<String, String> params = parseParameters(parameters);
 
+            // For EXP and MONEY types, itemId is not required
             String itemId = null;
-            String type = params.get("type");
-            String item = params.get("item");
+            if (!"EXP".equals(lootType) && !"MONEY".equals(lootType)) {
+                String type = params.get("type");
+                String item = params.get("item");
 
-            if (type != null && item != null) {
-                itemId = type + ":" + item;
-            } else if (item != null) {
-                itemId = item;
-            }
+                if (type != null && item != null) {
+                    itemId = type + ":" + item;
+                } else if (item != null) {
+                    itemId = item;
+                }
 
-            if (itemId == null) {
-                plugin.getLogger().warning("No item identifier found in loot line: " + lootLine);
-                return null;
+                if (itemId == null) {
+                    plugin.getLogger().warning("No item identifier found in loot line: " + lootLine);
+                    return null;
+                }
+            } else {
+                // For EXP and MONEY, use the type as itemId for consistency
+                itemId = lootType.toLowerCase();
             }
 
             boolean unidentified = Boolean.parseBoolean(params.getOrDefault("unidentified", "false"));
+            boolean split = Boolean.parseBoolean(params.getOrDefault("split", "false"));
 
-            // Парсинг min-drops та max-drops з нового формату або старого
+            // Parse min-drops and max-drops from new or legacy format
             int minDrops, maxDrops;
 
-            // Спочатку перевіряємо чи є параметри в старому форматі (в фігурних дужках)
+            // First, check legacy-style parameters in curly braces
             if (params.containsKey("min-drops") || params.containsKey("max-drops")) {
-                // Старий формат - беремо з параметрів
+                // Legacy: take from parameters
                 minDrops = Integer.parseInt(params.getOrDefault("min-drops", "1"));
                 maxDrops = Integer.parseInt(params.getOrDefault("max-drops", String.valueOf(minDrops)));
             } else {
-                // Новий формат - парсимо з amountStr
+                // New format: parse from amountStr
                 int[] dropRange = parseDropRange(amountStr);
                 minDrops = dropRange[0];
                 maxDrops = dropRange[1];
             }
 
-            // amount для старої логіки (кількість предметів, не дропів)
-            int amount = 1; // За замовчуванням 1
+            // amount for legacy logic (number of items, not drops)
+            int amount = 1; // Default 1
 
-            return new LootItem(lootType, itemId, chance, amount, unidentified, minDrops, maxDrops);
+            return new LootItem(lootType, itemId, chance, amount, unidentified, minDrops, maxDrops, split);
 
         } catch (Exception e) {
             plugin.getLogger().warning("Error parsing loot line '" + lootLine + "': " + e.getMessage());
@@ -236,7 +259,7 @@ public class LootManager {
 
     private int[] parseDropRange(String amountStr) {
         try {
-            // Перевіряємо формат "X-Y"
+            // Check "X-Y" format
             if (amountStr.contains("-")) {
                 String[] parts = amountStr.split("-", 2);
                 int min = Integer.parseInt(parts[0]);
@@ -244,7 +267,7 @@ public class LootManager {
                 return new int[]{min, max};
             }
 
-            // Перевіряємо формат "XtoY"
+            // Check "XtoY" format
             if (amountStr.contains("to")) {
                 String[] parts = amountStr.split("to", 2);
                 int min = Integer.parseInt(parts[0]);
@@ -252,13 +275,13 @@ public class LootManager {
                 return new int[]{min, max};
             }
 
-            // Одне число - і мін, і макс однакові
+            // Single number → min and max are equal
             int value = Integer.parseInt(amountStr);
             return new int[]{value, value};
 
         } catch (Exception e) {
             plugin.getLogger().warning("Error parsing drop range '" + amountStr + "': " + e.getMessage());
-            // За замовчуванням повертаємо 1-1
+            // Fallback: return 1-1
             return new int[]{1, 1};
         }
     }
@@ -278,21 +301,21 @@ public class LootManager {
     }
 
     public List<LootItem> getMobLoot(String mobId) {
-        MobLootConfig config = mobLootMap.get(mobId);
+        MobLootConfig config = mobLootMap.get(normalizeMobId(mobId));
         return config != null ? config.getLootItems() : null;
     }
 
     public MobLootConfig getMobLootConfig(String mobId) {
-        return mobLootMap.get(mobId);
+        return mobLootMap.get(normalizeMobId(mobId));
     }
 
     public boolean hasMobLoot(String mobId) {
-        MobLootConfig config = mobLootMap.get(mobId);
-        return config != null && !config.getLootItems().isEmpty();
+        MobLootConfig config = mobLootMap.get(normalizeMobId(mobId));
+        return config != null && (!config.getLootItems().isEmpty() || config.shouldProcessVanillaDrops());
     }
 
     public List<ItemStack> generateLoot(String mobId) {
-        MobLootConfig mobLootConfig = mobLootMap.get(mobId);
+        MobLootConfig mobLootConfig = mobLootMap.get(normalizeMobId(mobId));
         if (mobLootConfig == null || mobLootConfig.getLootItems().isEmpty()) {
             return new ArrayList<>();
         }
@@ -321,7 +344,7 @@ public class LootManager {
 
             LootItem selectedItem = null;
             int attempts = 0;
-            int maxAttempts = availableItems.size() * 3; // Максимум спроб
+            int maxAttempts = availableItems.size() * 3; // Max attempts
 
             while (selectedItem == null && attempts < maxAttempts) {
                 LootItem candidateItem = availableItems.get(
@@ -345,13 +368,72 @@ public class LootManager {
                 continue;
             }
 
+            // Skip exp and money items - they are handled separately
+            String itemType = selectedItem.getType().toUpperCase();
+            if ("EXP".equals(itemType) || "MONEY".equals(itemType)) {
+                availableItems.remove(selectedItem);
+                continue;
+            }
+
             List<ItemStack> itemDrops = createItemDrops(selectedItem);
             items.addAll(itemDrops);
 
             availableItems.remove(selectedItem);
         }
 
-        return items;
+        // Stack identical items together
+        return stackIdenticalItems(items);
+    }
+
+    private List<ItemStack> stackIdenticalItems(List<ItemStack> items) {
+        List<ItemStack> stackedItems = new ArrayList<>();
+        
+        for (ItemStack item : items) {
+            if (item == null) continue;
+            
+            boolean found = false;
+            for (ItemStack stacked : stackedItems) {
+                // Use isSimilar to check if items can be stacked
+                if (stacked.isSimilar(item)) {
+                    int newAmount = stacked.getAmount() + item.getAmount();
+                    int maxStackSize = stacked.getMaxStackSize();
+                    
+                    if (newAmount <= maxStackSize) {
+                        stacked.setAmount(newAmount);
+                    } else {
+                        // If exceeds max stack size, keep the existing and add remainder
+                        stacked.setAmount(maxStackSize);
+                        ItemStack remainder = item.clone();
+                        remainder.setAmount(newAmount - maxStackSize);
+                        stackedItems.add(remainder);
+                    }
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) {
+                stackedItems.add(item.clone());
+            }
+        }
+        
+        return stackedItems;
+    }
+
+    public List<LootItem> getExpAndMoneyLoot(MobLootConfig mobLootConfig) {
+        List<LootItem> expMoneyItems = new ArrayList<>();
+        
+        for (LootItem lootItem : mobLootConfig.getLootItems()) {
+            String itemType = lootItem.getType().toUpperCase();
+            if ("EXP".equals(itemType) || "MONEY".equals(itemType)) {
+                // Check chance
+                if (ThreadLocalRandom.current().nextDouble(100.0) <= lootItem.getChance()) {
+                    expMoneyItems.add(lootItem);
+                }
+            }
+        }
+        
+        return expMoneyItems;
     }
 
     private List<ItemStack> createItemDrops(LootItem lootItem) {
@@ -362,12 +444,19 @@ public class LootManager {
                 lootItem.getMaxDrops() + 1
         );
 
-        for (int i = 0; i < dropCount; i++) {
-            ItemStack item = createItemStack(lootItem);
-            if (item != null) {
-                drops.add(item);
-            }
+        if (dropCount <= 0) {
+            return drops;
         }
+
+        ItemStack baseItem = createItemStack(lootItem);
+        if (baseItem == null) {
+            return drops;
+        }
+
+        // Stack items together instead of creating separate ItemStacks
+        ItemStack stackedItem = baseItem.clone();
+        stackedItem.setAmount(dropCount);
+        drops.add(stackedItem);
 
         return drops;
     }
@@ -447,6 +536,10 @@ public class LootManager {
 
     public Map<String, MobLootConfig> getAllMobLootConfigs() {
         return new HashMap<>(mobLootMap);
+    }
+
+    private String normalizeMobId(String mobId) {
+        return mobId == null ? null : mobId.toUpperCase(Locale.ROOT);
     }
 
 }

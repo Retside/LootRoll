@@ -1,7 +1,8 @@
-package me.newtale.lootRoll.utils;
+package me.newtale.lootroll.util;
 
-import me.newtale.lootRoll.models.RollSession;
 import org.bukkit.entity.Player;
+
+import me.newtale.lootroll.model.RollSession;
 
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,7 @@ public class SessionHelper {
     public static List<RollSession> getAvailableSessionsForPlayer(Player player,
                                                                   Map<Player, List<RollSession>> playerActiveSessions,
                                                                   Map<String, RollSession> activeRolls,
-                                                                  boolean isFallbackRoll) {
+                                                                  boolean isGreedRoll) {
         List<RollSession> sessions = playerActiveSessions.get(player);
         if (sessions == null) {
             return List.of();
@@ -49,7 +50,7 @@ public class SessionHelper {
                 .filter(session -> activeRolls.containsKey(session.getId()))
                 .toList();
 
-        if (isFallbackRoll) {
+        if (isGreedRoll) {
             return activeSessions.stream()
                     .filter(session -> !session.hasPlayerRolledAny(player))
                     .collect(Collectors.toList());
@@ -70,7 +71,7 @@ public class SessionHelper {
 
         return sessions.stream()
                 .filter(session -> activeRolls.containsKey(session.getId()))
-                .filter(session -> !session.hasPlayerParticipated(player)) // Гравець ще не участвував
+                .filter(session -> !session.hasPlayerParticipated(player)) // Player hasn't participated yet
                 .collect(Collectors.toList());
     }
 

@@ -1,12 +1,12 @@
-package me.newtale.lootRoll.managers;
+package me.newtale.lootroll.manager;
 
-import com.comphenix.protocol.ProtocolLibrary;
-import com.comphenix.protocol.ProtocolManager;
-import me.newtale.lootRoll.models.RollSession;
-import me.newtale.lootRoll.utils.*;
+import me.newtale.lootroll.api.event.*;
+import me.newtale.lootroll.model.RollSession;
+import me.newtale.lootroll.util.*;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
@@ -15,19 +15,18 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.*;
+import static me.newtale.lootroll.util.ItemUtils.getItemDisplayName;
+import static me.newtale.lootroll.util.ItemUtils.getItemDisplayNameWithoutColors;
+import static me.newtale.lootroll.util.MessageUtils.processMessageWithVariables;
+import static me.newtale.lootroll.util.PacketUtils.hideItemFromPlayers;
 
-import static me.newtale.lootRoll.utils.ItemUtils.getItemDisplayName;
-import static me.newtale.lootRoll.utils.ItemUtils.getItemDisplayNameWithoutColors;
-import static me.newtale.lootRoll.utils.MessageUtils.processMessageWithVariables;
-import static me.newtale.lootRoll.utils.PacketUtils.hideItemFromPlayers;
+import java.util.*;
 
 public class RollManager {
 
     private final JavaPlugin plugin;
     private final ConfigManager configManager;
     private final PartyManager partyManager;
-    private final ProtocolManager protocolManager;
     private final ParticleEffectManager particleEffectManager;
 
     private final Map<String, RollSession> activeRolls;
@@ -42,7 +41,6 @@ public class RollManager {
         this.configManager = configManager;
         this.partyManager = partyManager;
         this.particleEffectManager = particleEffectManager;
-        this.protocolManager = ProtocolLibrary.getProtocolManager();
         this.activeRolls = new HashMap<>();
         this.clientSideItems = new HashMap<>();
         this.playerActiveSessions = new HashMap<>();
@@ -60,11 +58,13 @@ public class RollManager {
         activeRolls.put(sessionId, session);
         clientSideItems.put(droppedItem.getEntityId(), sessionId);
 
+        Bukkit.getPluginManager().callEvent(new RollSessionStartEvent(session));
+
         for (Player participant : participants) {
             playerActiveSessions.computeIfAbsent(participant, k -> new ArrayList<>()).add(session);
         }
 
-        PacketUtils.hideItemFromNonParticipants(droppedItem, participants, protocolManager, plugin);
+        PacketUtils.hideItemFromNonParticipants(droppedItem, participants, plugin);
         sendLootMessages(session);
         particleEffectManager.startItemAnimation(droppedItem, itemStack, participants);
         startRollTimer(session);
@@ -75,7 +75,7 @@ public class RollManager {
 
         itemOwnership.put(droppedItem.getEntityId(), owner);
 
-        PacketUtils.hideItemFromAllExcept(droppedItem, owner, protocolManager, plugin);
+        PacketUtils.hideItemFromAllExcept(droppedItem, owner, plugin);
 
         particleEffectManager.startItemAnimation(droppedItem, itemStack, Collections.singletonList(owner));
     }
@@ -173,11 +173,11 @@ public class RollManager {
         handleRollCommand(player, itemName, false);
     }
 
-    public void handleFallbackRollCommand(Player player) {
+    public void handleGreedRollCommand(Player player) {
         handleRollCommand(player, null, true);
     }
 
-    public void handleFallbackRollCommand(Player player, String itemName) {
+    public void handleGreedRollCommand(Player player, String itemName) {
         handleRollCommand(player, itemName, true);
     }
 
@@ -228,6 +228,12 @@ public class RollManager {
             }
         }
 
+        RollPassEvent passEvent = new RollPassEvent(targetSession, player);
+        Bukkit.getPluginManager().callEvent(passEvent);
+        if (passEvent.isCancelled()) {
+            return;
+        }
+
         targetSession.cancelRoll(player);
         announceSkipRoll(targetSession, player);
 
@@ -268,12 +274,12 @@ public class RollManager {
         }
     }
 
-    // Оновлений метод для отримання сесій доступних для скіпу
+    // Updated method to fetch sessions available to pass
     public List<RollSession> getSkippableSessionsForPlayer(Player player) {
         return SessionHelper.getAvailableSessionsForSkip(player, playerActiveSessions, activeRolls);
     }
 
-    private void handleRollCommand(Player player, String itemName, boolean isFallbackRoll) {
+    private void handleRollCommand(Player player, String itemName, boolean isGreedRoll) {
         if (!partyManager.isPlayerInParty(player)) {
             String messageTemplate = configManager.getMessage("not-in-party",
                     "<red>You must be in a party to use the roll system!");
@@ -282,9 +288,9 @@ public class RollManager {
             return;
         }
 
-        List<RollSession> availableSessions = SessionHelper.getAvailableSessionsForPlayer(player, playerActiveSessions, activeRolls, isFallbackRoll);
+        List<RollSession> availableSessions = SessionHelper.getAvailableSessionsForPlayer(player, playerActiveSessions, activeRolls, isGreedRoll);
         if (availableSessions.isEmpty()) {
-            String messageKey = isFallbackRoll ? "no-active-fallback-roll" : "no-active-roll";
+            String messageKey = isGreedRoll ? "no-active-greed-roll" : "no-active-roll";
             String messageTemplate = configManager.getMessage(messageKey,
                     "<red>No active roll session found!");
             Component message = processMessageWithVariables(messageTemplate, null, null, null);
@@ -317,13 +323,25 @@ public class RollManager {
 
         int roll = RollUtils.generateRoll();
 
-        if (isFallbackRoll) {
-            targetSession.addFallbackRoll(player, roll);
+        if (isGreedRoll) {
+            RollGreedEvent greedEvent = new RollGreedEvent(targetSession, player, roll);
+            Bukkit.getPluginManager().callEvent(greedEvent);
+            if (greedEvent.isCancelled()) {
+                return;
+            }
+            roll = greedEvent.getRoll();
+            targetSession.addGreedRoll(player, roll);
         } else {
+            RollNeedEvent needEvent = new RollNeedEvent(targetSession, player, roll);
+            Bukkit.getPluginManager().callEvent(needEvent);
+            if (needEvent.isCancelled()) {
+                return;
+            }
+            roll = needEvent.getRoll();
             targetSession.addRoll(player, roll);
         }
 
-        announceRoll(targetSession, player, roll, isFallbackRoll);
+        announceRoll(targetSession, player, roll, isGreedRoll);
 
         if (targetSession.haveAllPlayersParticipated()) {
             finishRollSession(targetSession.getId());
@@ -350,19 +368,19 @@ public class RollManager {
         return SessionHelper.getAvailableSessionsForPlayer(player, playerActiveSessions, activeRolls, false);
     }
 
-    public List<String> getAvailableFallbackItemNames(Player player) {
+    public List<String> getAvailableGreedItemNames(Player player) {
         List<RollSession> sessions = SessionHelper.getAvailableSessionsForPlayer(player, playerActiveSessions, activeRolls, true);
         return SessionHelper.getAvailableItemNames(sessions);
     }
 
-    private void announceRoll(RollSession session, Player player, int roll, boolean isFallbackRoll) {
+    private void announceRoll(RollSession session, Player player, int roll, boolean isGreedRoll) {
         String itemName = getItemDisplayName(session.getItem());
         String itemNameNoColors = getItemDisplayNameWithoutColors(session.getItem());
 
-        String messageKey = isFallbackRoll ? "player-fallback-rolled" : "player-rolled";
+        String messageKey = isGreedRoll ? "player-greed-rolled" : "player-rolled";
         String rollMessageTemplate = configManager.getMessage(messageKey,
-                isFallbackRoll ?
-                        "<green><player></green> <gray>fallback rolled <aqua><roll></aqua> for <white><item></white>" :
+                isGreedRoll ?
+                        "<green><player></green> <gray>greed rolled <aqua><roll></aqua> for <white><item></white>" :
                         "<green><player></green> <gray>rolled <aqua><roll></aqua> for <white><item></white>");
 
         for (Player participant : session.getParticipants()) {
@@ -398,6 +416,7 @@ public class RollManager {
 
         if (effectiveRolls.isEmpty()) {
             unlockItemForParticipants(session);
+            Bukkit.getPluginManager().callEvent(new RollSessionFinishEvent(session, null, session.getAllRolls()));
             return;
         }
 
@@ -407,6 +426,8 @@ public class RollManager {
         } else {
             cleanupClientSideItem(sessionId);
         }
+
+        Bukkit.getPluginManager().callEvent(new RollSessionFinishEvent(session, session.getWinner(), session.getAllRolls()));
     }
 
     private void unlockItemForParticipants(RollSession session) {
@@ -414,6 +435,7 @@ public class RollManager {
         clientSideItems.remove(session.getDroppedItem().getEntityId());
 
         unlockedItems.put(session.getDroppedItem().getEntityId(), new ArrayList<>(session.getParticipants()));
+        session.setWinner(null);
 
         String itemName = getItemDisplayName(session.getItem());
         String itemNameNoColors = getItemDisplayNameWithoutColors(session.getItem());
@@ -429,19 +451,20 @@ public class RollManager {
     }
 
     private void giveItemToWinner(RollSession session, Player winner) {
+        session.setWinner(winner);
         winner.getInventory().addItem(session.getItem());
 
-        hideItemFromPlayers(session.getDroppedItem(), session.getParticipants(), protocolManager, plugin);
+        hideItemFromPlayers(session.getDroppedItem(), session.getParticipants(), plugin);
         cleanupClientSideItem(session.getId());
 
         String itemName = getItemDisplayName(session.getItem());
         String itemNameNoColors = getItemDisplayNameWithoutColors(session.getItem());
 
-        boolean wonWithFallback = !session.getRolls().containsKey(winner) && session.getFallbackRolls().containsKey(winner);
-        String messageKey = wonWithFallback ? "fallback-roll-winner" : "roll-winner";
+        boolean wonWithGreed = !session.getRolls().containsKey(winner) && session.getGreedRolls().containsKey(winner);
+        String messageKey = wonWithGreed ? "greed-roll-winner" : "roll-winner";
         String winMessageTemplate = configManager.getMessage(messageKey,
-                wonWithFallback ?
-                        "<gold><player></gold> <gray>won <white><item></white> with a fallback roll of <aqua><roll></aqua>!" :
+                wonWithGreed ?
+                        "<gold><player></gold> <gray>won <white><item></white> with a greed roll of <aqua><roll></aqua>!" :
                         "<gold><player></gold> <gray>won <white><item></white> with a roll of <aqua><roll></aqua>!");
 
         int winningRoll = session.getEffectiveRolls().get(winner);

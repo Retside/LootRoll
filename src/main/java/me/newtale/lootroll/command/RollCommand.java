@@ -1,8 +1,5 @@
-package me.newtale.lootRoll.commands;
+package me.newtale.lootroll.command;
 
-import me.newtale.lootRoll.managers.RollManager;
-import me.newtale.lootRoll.models.RollSession;
-import me.newtale.lootRoll.utils.SessionHelper;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -11,14 +8,18 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import me.newtale.lootroll.manager.RollManager;
+import me.newtale.lootroll.model.RollSession;
+import me.newtale.lootroll.util.SessionHelper;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class RollCancelCommand implements CommandExecutor, TabCompleter {
+public class RollCommand implements CommandExecutor, TabCompleter {
     private final RollManager rollManager;
 
-    public RollCancelCommand(RollManager rollManager) {
+    public RollCommand(RollManager rollManager) {
         this.rollManager = rollManager;
     }
 
@@ -30,9 +31,9 @@ public class RollCancelCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 0) {
-            rollManager.handleRollCancelCommand(player);
+            rollManager.handleRollCommand(player);
         } else {
-            rollManager.handleRollCancelCommand(player, String.join(" ", args));
+            rollManager.handleRollCommand(player, String.join(" ", args));
         }
         return true;
     }
@@ -43,7 +44,7 @@ public class RollCancelCommand implements CommandExecutor, TabCompleter {
             return Collections.emptyList();
         }
 
-        List<RollSession> sessions = rollManager.getSkippableSessionsForPlayer(player);
+        List<RollSession> sessions = rollManager.getAvailableSessionsForPlayer(player);
         List<String> availableItems = SessionHelper.getAvailableItemNamesForTabCompletion(sessions);
 
         if (args.length <= 1) {

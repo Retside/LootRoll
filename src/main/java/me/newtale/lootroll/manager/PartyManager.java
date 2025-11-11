@@ -1,4 +1,4 @@
-package me.newtale.lootRoll.managers;
+package me.newtale.lootroll.manager;
 
 import com.alessiodp.parties.api.interfaces.PartiesAPI;
 import com.alessiodp.parties.api.interfaces.Party;
@@ -26,7 +26,6 @@ public class PartyManager {
     public PartyManager(ConfigManager configManager) {
         this.configManager = configManager;
 
-        // Определяем тип party системы из конфига
         String partyTypeString = configManager.getConfig().getString("party-system", "parties").toLowerCase();
 
         switch (partyTypeString) {
@@ -41,7 +40,6 @@ public class PartyManager {
             case "parties":
             default:
                 this.partyType = PartyType.PARTIES;
-                // Получаем API из существующей логики
                 this.partiesAPI = getPartiesAPI();
                 break;
         }
@@ -49,7 +47,7 @@ public class PartyManager {
         configManager.getPlugin().getLogger().info("Using party system: " + this.partyType.name());
     }
 
-    // Конструктор для обратной совместимости
+    // Backwards compatibility constructor
     public PartyManager(PartiesAPI partiesAPI, ConfigManager configManager) {
         this.partiesAPI = partiesAPI;
         this.configManager = configManager;
@@ -90,7 +88,6 @@ public class PartyManager {
         return members.size() > 1;
     }
 
-    // MMOCore Implementation
     private boolean isPlayerInMMOCoreParty(Player player) {
         try {
             PlayerData playerData = PlayerData.get(player);
@@ -133,7 +130,6 @@ public class PartyManager {
         return members;
     }
 
-    // Parties Plugin Implementation
     private boolean isPlayerInPartiesPlugin(Player player) {
         if (partiesAPI == null) return false;
 
@@ -178,7 +174,6 @@ public class PartyManager {
         return members;
     }
 
-    // Getter for party type (для отладки)
     public PartyType getPartyType() {
         return partyType;
     }

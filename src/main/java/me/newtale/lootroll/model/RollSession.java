@@ -1,4 +1,4 @@
-package me.newtale.lootRoll.models;
+package me.newtale.lootroll.model;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Item;
@@ -18,7 +18,7 @@ public class RollSession {
     private final Location location;
     private final Item droppedItem;
     private final Map<Player, Integer> rolls; // Regular rolls
-    private final Map<Player, Integer> fallbackRolls; // Fallback rolls (/rollf)
+    private final Map<Player, Integer> greedRolls; // Greed rolls (/greed)
     private final Set<Player> cancelledPlayers; // Players who cancelled their roll
     private Player winner;
 
@@ -29,7 +29,7 @@ public class RollSession {
         this.location = location;
         this.droppedItem = droppedItem;
         this.rolls = new HashMap<>();
-        this.fallbackRolls = new HashMap<>();
+        this.greedRolls = new HashMap<>();
         this.cancelledPlayers = new HashSet<>();
         this.winner = null;
     }
@@ -58,10 +58,6 @@ public class RollSession {
         return rolls;
     }
 
-    public Map<Player, Integer> getFallbackRolls() {
-        return fallbackRolls;
-    }
-
     public Set<Player> getCancelledPlayers() {
         return cancelledPlayers;
     }
@@ -72,20 +68,20 @@ public class RollSession {
 
     public void addRoll(Player player, int roll) {
         rolls.put(player, roll);
-        fallbackRolls.remove(player);
+        greedRolls.remove(player);
         cancelledPlayers.remove(player);
     }
 
-    public void addFallbackRoll(Player player, int roll) {
+    public void addGreedRoll(Player player, int roll) {
         if (!rolls.containsKey(player)) {
-            fallbackRolls.put(player, roll);
+            greedRolls.put(player, roll);
             cancelledPlayers.remove(player);
         }
     }
 
     public void cancelRoll(Player player) {
         rolls.remove(player);
-        fallbackRolls.remove(player);
+        greedRolls.remove(player);
         cancelledPlayers.add(player);
     }
 
@@ -93,12 +89,12 @@ public class RollSession {
         return rolls.containsKey(player);
     }
 
-    public boolean hasPlayerFallbackRolled(Player player) {
-        return fallbackRolls.containsKey(player);
+    public boolean hasPlayerGreedRolled(Player player) {
+        return greedRolls.containsKey(player);
     }
 
     public boolean hasPlayerRolledAny(Player player) {
-        return hasPlayerRolled(player) || hasPlayerFallbackRolled(player);
+        return hasPlayerRolled(player) || hasPlayerGreedRolled(player);
     }
 
     public boolean hasPlayerCancelled(Player player) {
@@ -129,13 +125,17 @@ public class RollSession {
         if (!rolls.isEmpty()) {
             return rolls;
         }
-        return fallbackRolls;
+        return greedRolls;
     }
 
     public Map<Player, Integer> getAllRolls() {
         Map<Player, Integer> allRolls = new HashMap<>();
-        allRolls.putAll(fallbackRolls);
-        allRolls.putAll(rolls); // Regular rolls override fallback rolls
+        allRolls.putAll(greedRolls);
+        allRolls.putAll(rolls); // Need rolls override greed rolls
         return allRolls;
+    }
+
+    public Map<Player, Integer> getGreedRolls() {
+        return greedRolls;
     }
 }

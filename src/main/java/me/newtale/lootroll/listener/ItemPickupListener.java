@@ -1,11 +1,12 @@
-package me.newtale.lootRoll.listeners;
+package me.newtale.lootroll.listener;
 
-import me.newtale.lootRoll.managers.RollManager;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+
+import me.newtale.lootroll.manager.RollManager;
 
 public class ItemPickupListener implements Listener {
 

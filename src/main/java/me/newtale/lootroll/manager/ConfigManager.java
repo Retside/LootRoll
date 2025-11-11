@@ -1,4 +1,4 @@
-package me.newtale.lootRoll.managers;
+package me.newtale.lootroll.manager;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -116,8 +116,8 @@ public class ConfigManager {
                         "mmoitems{type=MATERIAL;item=SPIDER_SILK} 2-5 .8", // Новий формат з дефісом
                         "mmoitems{type=MATERIAL;item=WEB_ESSENCE} 1to3 .6", // Новий формат з "to"
                         "mmoitems{type=MATERIAL;item=RARE_SILK} 1 .2", // Новий формат - одне число
-                        "vanilla{item=IRON_SWORD} 1 .5",
-                        "mythicmobs{item=DARK_BLADE} 1 .1"
+                        "vanilla{item=iron_sword} 1 .5",
+                        "mythicmobs{item=DarkBlade} 1 .1"
                 );
                 newConfig.set("dark_forest_spider.loot", spiderLoot);
 
@@ -128,8 +128,8 @@ public class ConfigManager {
                 List<String> elementalLoot = Arrays.asList(
                         "mmoitems{type=MATERIAL;item=FIRE_CRYSTAL} 1-3 .6", // Новий формат
                         "mmoitems{type=WEAPON;item=FLAME_SWORD;unidentified=true} 1 .15",
-                        "vanilla{item=BLAZE_POWDER} 5 .9",
-                        "mythicmobs{item=ELEMENTAL_CORE} 0to2 .25" // Новий формат з "to"
+                        "vanilla{item=blaze_powder} 5 .9",
+                        "mythicmobs{item=ElementalCore} 0to2 .25" // Новий формат з "to"
                 );
                 newConfig.set("fire_elemental.loot", elementalLoot);
 
@@ -142,8 +142,8 @@ public class ConfigManager {
                         "mmoitems{type=WEAPON;item=LEGENDARY_SWORD;unidentified=true} 1 .2",
                         "mmoitems{type=ARMOR;item=DRAGON_HELMET;unidentified=true} 1 .15",
                         "mmoitems{type=CONSUMABLE;item=DRAGON_HEART} 1 .1",
-                        "vanilla{item=DIAMOND} 5to15 .8", // Новий формат з "to"
-                        "mythicmobs{item=ANCIENT_RUNE} 1 .3" // Старий формат
+                        "vanilla{item=diamond} 5to15 .8", // Новий формат з "to"
+                        "mythicmobs{item=Ancient_Rune} 1 .3" // Старий формат
                 );
                 newConfig.set("ancient_dragon.loot", dragonLoot);
 

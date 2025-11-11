@@ -1,4 +1,4 @@
-package me.newtale.lootRoll.models;
+package me.newtale.lootroll.model;
 
 public class LootItem {
     private final String type;
@@ -8,16 +8,21 @@ public class LootItem {
     private final boolean unidentified;
     private final int minDrops;
     private final int maxDrops;
+    private final boolean split;
 
     public LootItem(String type, String itemId, double chance, int amount) {
-        this(type, itemId, chance, amount, false, 1, 1);
+        this(type, itemId, chance, amount, false, 1, 1, false);
     }
 
     public LootItem(String type, String itemId, double chance, int amount, boolean unidentified) {
-        this(type, itemId, chance, amount, unidentified, 1, 1);
+        this(type, itemId, chance, amount, unidentified, 1, 1, false);
     }
 
     public LootItem(String type, String itemId, double chance, int amount, boolean unidentified, int minDrops, int maxDrops) {
+        this(type, itemId, chance, amount, unidentified, minDrops, maxDrops, false);
+    }
+
+    public LootItem(String type, String itemId, double chance, int amount, boolean unidentified, int minDrops, int maxDrops, boolean split) {
         this.type = type;
         this.itemId = itemId;
         this.chance = chance;
@@ -25,6 +30,7 @@ public class LootItem {
         this.unidentified = unidentified;
         this.minDrops = Math.max(1, minDrops);
         this.maxDrops = Math.max(this.minDrops, maxDrops);
+        this.split = split;
     }
 
     public String getType() {
@@ -55,6 +61,10 @@ public class LootItem {
         return maxDrops;
     }
 
+    public boolean isSplit() {
+        return split;
+    }
+
     @Override
     public String toString() {
         return "LootItem{" +
@@ -65,6 +75,7 @@ public class LootItem {
                 ", unidentified=" + unidentified +
                 ", minDrops=" + minDrops +
                 ", maxDrops=" + maxDrops +
+                ", split=" + split +
                 '}';
     }
 }

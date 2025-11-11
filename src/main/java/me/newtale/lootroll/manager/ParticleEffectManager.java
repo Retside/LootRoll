@@ -1,5 +1,6 @@
-package me.newtale.lootRoll.managers;
+package me.newtale.lootroll.manager;
 
+import me.newtale.lootroll.util.ItemUtils;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
@@ -20,7 +21,7 @@ import java.util.regex.Pattern;
 public class ParticleEffectManager {
 
     private final JavaPlugin plugin;
-    private final Map<Integer, BukkitTask> activeAnimations; // entityId -> animation task
+    private final Map<Integer, BukkitTask> activeAnimations; // entityId -> scheduled animation task
 
     public ParticleEffectManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -37,7 +38,7 @@ public class ParticleEffectManager {
 
             @Override
             public void run() {
-                if (!item.isValid() || ticks > 60) { // 3 секунди анімації
+                if (!item.isValid() || ticks > 60) { // ~3 seconds of animation
                     stopItemAnimation(item.getEntityId());
                     cancel();
                     return;
@@ -210,10 +211,7 @@ public class ParticleEffectManager {
     }
 
     private String getItemDisplayName(ItemStack item) {
-        if (item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
-            return item.getItemMeta().getDisplayName();
-        }
-        return item.getType().name().toLowerCase().replace("_", " ");
+        return ItemUtils.getItemDisplayName(item);
     }
 
     public void cleanup() {

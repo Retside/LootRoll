@@ -1,6 +1,6 @@
-package me.newtale.lootRoll.commands;
+package me.newtale.lootroll.command;
 
-import me.newtale.lootRoll.managers.RollManager;
+import me.newtale.lootroll.manager.RollManager;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -13,10 +13,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class RollFCommand implements CommandExecutor, TabCompleter {
+public class GreedCommand implements CommandExecutor, TabCompleter {
     private final RollManager rollManager;
 
-    public RollFCommand(RollManager rollManager) {
+    public GreedCommand(RollManager rollManager) {
         this.rollManager = rollManager;
     }
 
@@ -28,9 +28,9 @@ public class RollFCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 0) {
-            rollManager.handleFallbackRollCommand(player);
+            rollManager.handleGreedRollCommand(player);
         } else {
-            rollManager.handleFallbackRollCommand(player, String.join(" ", args));
+            rollManager.handleGreedRollCommand(player, String.join(" ", args));
         }
         return true;
     }
@@ -41,7 +41,7 @@ public class RollFCommand implements CommandExecutor, TabCompleter {
             return Collections.emptyList();
         }
 
-        List<String> availableItems = rollManager.getAvailableFallbackItemNames(player);
+        List<String> availableItems = rollManager.getAvailableGreedItemNames(player);
 
         if (args.length <= 1) {
             String input = args.length == 0 ? "" : args[0].toLowerCase();
@@ -56,3 +56,4 @@ public class RollFCommand implements CommandExecutor, TabCompleter {
                 .collect(Collectors.toList());
     }
 }
+
