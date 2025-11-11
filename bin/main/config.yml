@@ -29,3 +29,5 @@ messages:
   not-in-party: "<red>You must be in a party to use the roll command!"
   no-rolls-unlocked: "<gray>Nobody rolled for <gray>[</gray><item><gray>]</gray>!"
   item-not-found: "<red>Item '<item>' not found!"
+  exp-placeholder: "<green><amount> EXP</green>"
+  money-placeholder: "<gold><amount></gold>"

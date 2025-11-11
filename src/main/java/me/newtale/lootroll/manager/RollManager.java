@@ -15,8 +15,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
-import static me.newtale.lootroll.util.ItemUtils.getItemDisplayName;
-import static me.newtale.lootroll.util.ItemUtils.getItemDisplayNameWithoutColors;
+import me.newtale.lootroll.util.ItemUtils;
 import static me.newtale.lootroll.util.MessageUtils.processMessageWithVariables;
 import static me.newtale.lootroll.util.PacketUtils.hideItemFromPlayers;
 
@@ -52,11 +51,20 @@ public class RollManager {
     public void startRollSession(ItemStack itemStack, List<Player> participants, Location location) {
         String sessionId = UUID.randomUUID().toString();
 
-        Item droppedItem = RollUtils.createDroppedItem(location, itemStack);
+        // Don't create physical item for exp/money loot
+        Item droppedItem = null;
+        boolean isVirtualLoot = ItemUtils.isExpLoot(itemStack) || ItemUtils.isMoneyLoot(itemStack);
+        
+        if (!isVirtualLoot) {
+            droppedItem = RollUtils.createDroppedItem(location, itemStack);
+        }
 
         RollSession session = new RollSession(sessionId, itemStack, participants, location, droppedItem);
         activeRolls.put(sessionId, session);
-        clientSideItems.put(droppedItem.getEntityId(), sessionId);
+        
+        if (droppedItem != null) {
+            clientSideItems.put(droppedItem.getEntityId(), sessionId);
+        }
 
         Bukkit.getPluginManager().callEvent(new RollSessionStartEvent(session));
 
@@ -64,9 +72,12 @@ public class RollManager {
             playerActiveSessions.computeIfAbsent(participant, k -> new ArrayList<>()).add(session);
         }
 
-        PacketUtils.hideItemFromNonParticipants(droppedItem, participants, plugin);
+        if (droppedItem != null) {
+            PacketUtils.hideItemFromNonParticipants(droppedItem, participants, plugin);
+            particleEffectManager.startItemAnimation(droppedItem, itemStack, participants);
+        }
+        
         sendLootMessages(session);
-        particleEffectManager.startItemAnimation(droppedItem, itemStack, participants);
         startRollTimer(session);
     }
 
@@ -104,13 +115,13 @@ public class RollManager {
     }
 
     private void sendLootMessages(RollSession session) {
-        String itemName = getItemDisplayName(session.getItem());
-        String itemNameNoColors = getItemDisplayNameWithoutColors(session.getItem());
+        String itemName = ItemUtils.getItemDisplayName(session.getItem(), configManager);
+        String itemNameNoColors = ItemUtils.getItemDisplayNameWithoutColors(session.getItem(), configManager);
         String messageTemplate = configManager.getMessage("loot-dropped",
                 "<gold>[Loot]</gold> <white><item></white> <gray>has dropped! Type <green>/roll</green> or <green>/roll <item_name></green> to roll for it!");
 
         for (Player player : session.getParticipants()) {
-            Component message = MessageUtils.createLootMessage(messageTemplate, itemName, itemNameNoColors, session.getItem());
+            Component message = MessageUtils.processMessageWithVariables(messageTemplate, itemName, itemNameNoColors, session.getItem(), configManager);
             player.sendMessage(message);
         }
     }
@@ -144,14 +155,14 @@ public class RollManager {
                 }
 
                 if (timeLeft == 10) {
-                    String itemName = getItemDisplayName(session.getItem());
-                    String itemNameNoColors = getItemDisplayNameWithoutColors(session.getItem());
+                    String itemName = ItemUtils.getItemDisplayName(session.getItem(), configManager);
+                    String itemNameNoColors = ItemUtils.getItemDisplayNameWithoutColors(session.getItem(), configManager);
                     String countdownTemplate = configManager.getMessage("countdown",
                             "<gray>Rolling for <white><item></white> ends in <red><time></red> seconds!");
 
                     for (Player participant : session.getParticipants()) {
                         if (participant.isOnline()) {
-                            Component countdownMessage = MessageUtils.createLootMessage(countdownTemplate, itemName, itemNameNoColors, session.getItem(),
+                            Component countdownMessage = MessageUtils.createLootMessage(countdownTemplate, itemName, itemNameNoColors, session.getItem(), configManager,
                                     Placeholder.unparsed("time", String.valueOf(timeLeft)));
                             participant.sendMessage(countdownMessage);
                         }
@@ -249,25 +260,25 @@ public class RollManager {
         player.sendMessage(message);
 
         for (RollSession session : sessions) {
-            String itemName = getItemDisplayName(session.getItem());
-            String itemNameNoColors = getItemDisplayNameWithoutColors(session.getItem());
+            String itemName = ItemUtils.getItemDisplayName(session.getItem(), configManager);
+            String itemNameNoColors = ItemUtils.getItemDisplayNameWithoutColors(session.getItem(), configManager);
             String itemTemplate = configManager.getMessage("available-skip-item-format",
                     "<gray>- <white><item></white>");
-            Component itemMessage = MessageUtils.createLootMessage(itemTemplate, itemName, itemNameNoColors, session.getItem());
+            Component itemMessage = MessageUtils.createLootMessage(itemTemplate, itemName, itemNameNoColors, session.getItem(), configManager);
             player.sendMessage(itemMessage);
         }
     }
 
     private void announceSkipRoll(RollSession session, Player player) {
-        String itemName = getItemDisplayName(session.getItem());
-        String itemNameNoColors = getItemDisplayNameWithoutColors(session.getItem());
+        String itemName = ItemUtils.getItemDisplayName(session.getItem(), configManager);
+        String itemNameNoColors = ItemUtils.getItemDisplayNameWithoutColors(session.getItem(), configManager);
 
         String rollMessageTemplate = configManager.getMessage("player-skipped-roll",
                 "<yellow><player></yellow> <gray>skipped rolling for <white><item></white>");
 
         for (Player participant : session.getParticipants()) {
             if (participant.isOnline()) {
-                Component rollMessage = MessageUtils.createLootMessage(rollMessageTemplate, itemName, itemNameNoColors, session.getItem(),
+                Component rollMessage = MessageUtils.createLootMessage(rollMessageTemplate, itemName, itemNameNoColors, session.getItem(), configManager,
                         Placeholder.unparsed("player", player.getName()));
                 participant.sendMessage(rollMessage);
             }
@@ -355,11 +366,11 @@ public class RollManager {
         player.sendMessage(message);
 
         for (RollSession session : sessions) {
-            String itemName = getItemDisplayName(session.getItem());
-            String itemNameNoColors = getItemDisplayNameWithoutColors(session.getItem());
+            String itemName = ItemUtils.getItemDisplayName(session.getItem(), configManager);
+            String itemNameNoColors = ItemUtils.getItemDisplayNameWithoutColors(session.getItem(), configManager);
             String itemTemplate = configManager.getMessage("available-item-format",
                     "<gray>- <white><item></white>");
-            Component itemMessage = MessageUtils.createLootMessage(itemTemplate, itemName, itemNameNoColors, session.getItem());
+            Component itemMessage = MessageUtils.createLootMessage(itemTemplate, itemName, itemNameNoColors, session.getItem(), configManager);
             player.sendMessage(itemMessage);
         }
     }
@@ -374,8 +385,8 @@ public class RollManager {
     }
 
     private void announceRoll(RollSession session, Player player, int roll, boolean isGreedRoll) {
-        String itemName = getItemDisplayName(session.getItem());
-        String itemNameNoColors = getItemDisplayNameWithoutColors(session.getItem());
+        String itemName = ItemUtils.getItemDisplayName(session.getItem(), configManager);
+        String itemNameNoColors = ItemUtils.getItemDisplayNameWithoutColors(session.getItem(), configManager);
 
         String messageKey = isGreedRoll ? "player-greed-rolled" : "player-rolled";
         String rollMessageTemplate = configManager.getMessage(messageKey,
@@ -385,7 +396,7 @@ public class RollManager {
 
         for (Player participant : session.getParticipants()) {
             if (participant.isOnline()) {
-                Component rollMessage = MessageUtils.createLootMessage(rollMessageTemplate, itemName, itemNameNoColors, session.getItem(),
+                Component rollMessage = MessageUtils.createLootMessage(rollMessageTemplate, itemName, itemNameNoColors, session.getItem(), configManager,
                         Placeholder.unparsed("player", player.getName()),
                         Placeholder.unparsed("roll", String.valueOf(roll)));
                 participant.sendMessage(rollMessage);
@@ -431,20 +442,23 @@ public class RollManager {
     }
 
     private void unlockItemForParticipants(RollSession session) {
-
-        clientSideItems.remove(session.getDroppedItem().getEntityId());
-
-        unlockedItems.put(session.getDroppedItem().getEntityId(), new ArrayList<>(session.getParticipants()));
+        Item droppedItem = session.getDroppedItem();
+        
+        if (droppedItem != null) {
+            clientSideItems.remove(droppedItem.getEntityId());
+            unlockedItems.put(droppedItem.getEntityId(), new ArrayList<>(session.getParticipants()));
+        }
+        
         session.setWinner(null);
 
-        String itemName = getItemDisplayName(session.getItem());
-        String itemNameNoColors = getItemDisplayNameWithoutColors(session.getItem());
+        String itemName = ItemUtils.getItemDisplayName(session.getItem(), configManager);
+        String itemNameNoColors = ItemUtils.getItemDisplayNameWithoutColors(session.getItem(), configManager);
         String noRollMessageTemplate = configManager.getMessage("no-rolls-unlocked",
                 "<gray>No one rolled for <white><item></white>. Item is now available for pickup by party members!");
 
         for (Player participant : session.getParticipants()) {
             if (participant.isOnline()) {
-                Component noRollMessage = MessageUtils.createLootMessage(noRollMessageTemplate, itemName, itemNameNoColors, session.getItem());
+                Component noRollMessage = MessageUtils.createLootMessage(noRollMessageTemplate, itemName, itemNameNoColors, session.getItem(), configManager);
                 participant.sendMessage(noRollMessage);
             }
         }
@@ -452,13 +466,34 @@ public class RollManager {
 
     private void giveItemToWinner(RollSession session, Player winner) {
         session.setWinner(winner);
-        winner.getInventory().addItem(session.getItem());
+        ItemStack item = session.getItem();
 
-        hideItemFromPlayers(session.getDroppedItem(), session.getParticipants(), plugin);
+        // Handle exp and money loot
+        if (ItemUtils.isExpLoot(item)) {
+            int amount = ItemUtils.getLootAmount(item);
+            winner.giveExp(amount);
+        } else if (ItemUtils.isMoneyLoot(item)) {
+            if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
+                org.bukkit.plugin.RegisteredServiceProvider<net.milkbowl.vault.economy.Economy> rsp = 
+                    Bukkit.getServer().getServicesManager().getRegistration(net.milkbowl.vault.economy.Economy.class);
+                if (rsp != null) {
+                    net.milkbowl.vault.economy.Economy economy = rsp.getProvider();
+                    int amount = ItemUtils.getLootAmount(item);
+                    economy.depositPlayer(winner, amount);
+                }
+            }
+        } else {
+            winner.getInventory().addItem(item);
+        }
+
+        Item droppedItem = session.getDroppedItem();
+        if (droppedItem != null) {
+            hideItemFromPlayers(droppedItem, session.getParticipants(), plugin);
+        }
         cleanupClientSideItem(session.getId());
 
-        String itemName = getItemDisplayName(session.getItem());
-        String itemNameNoColors = getItemDisplayNameWithoutColors(session.getItem());
+        String itemName = ItemUtils.getItemDisplayName(session.getItem(), configManager);
+        String itemNameNoColors = ItemUtils.getItemDisplayNameWithoutColors(session.getItem(), configManager);
 
         boolean wonWithGreed = !session.getRolls().containsKey(winner) && session.getGreedRolls().containsKey(winner);
         String messageKey = wonWithGreed ? "greed-roll-winner" : "roll-winner";
@@ -471,7 +506,7 @@ public class RollManager {
 
         for (Player participant : session.getParticipants()) {
             if (participant.isOnline()) {
-                Component winMessage = createLootMessage(winMessageTemplate, itemName, itemNameNoColors, session.getItem(),
+                Component winMessage = MessageUtils.createLootMessage(winMessageTemplate, itemName, itemNameNoColors, session.getItem(), configManager,
                         Placeholder.unparsed("player", winner.getName()),
                         Placeholder.unparsed("roll", String.valueOf(winningRoll)));
                 participant.sendMessage(winMessage);
@@ -482,10 +517,13 @@ public class RollManager {
 
     private void cleanupClientSideItem(String sessionId) {
         RollSession session = activeRolls.get(sessionId);
-        if (session != null && session.getDroppedItem() != null) {
-            clientSideItems.remove(session.getDroppedItem().getEntityId());
-            if (session.getDroppedItem().isValid()) {
-                session.getDroppedItem().remove();
+        if (session != null) {
+            Item droppedItem = session.getDroppedItem();
+            if (droppedItem != null) {
+                clientSideItems.remove(droppedItem.getEntityId());
+                if (droppedItem.isValid()) {
+                    droppedItem.remove();
+                }
             }
         }
     }

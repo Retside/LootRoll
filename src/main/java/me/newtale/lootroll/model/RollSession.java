@@ -16,7 +16,7 @@ public class RollSession {
     private final ItemStack item;
     private final List<Player> participants;
     private final Location location;
-    private final Item droppedItem;
+    private final Item droppedItem; // null for exp/money loot
     private final Map<Player, Integer> rolls; // Regular rolls
     private final Map<Player, Integer> greedRolls; // Greed rolls (/greed)
     private final Set<Player> cancelledPlayers; // Players who cancelled their roll

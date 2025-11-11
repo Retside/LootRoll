@@ -46,15 +46,6 @@ public class LootManager {
             FileConfiguration dropConfig = entry.getValue();
             loadMobsFromConfig(dropConfig, fileName);
         }
-
-        ConfigurationSection mobsSection = configManager.getConfig().getConfigurationSection("mobs");
-        if (mobsSection != null) {
-            plugin.getLogger().info("Loading mobs from main config section...");
-            int loaded = loadMobsFromSection(mobsSection, "main config");
-            plugin.getLogger().info("Loaded " + loaded + " mobs from main config");
-        } else {
-            plugin.getLogger().info("No 'mobs' section found in main config");
-        }
     }
 
     private int loadMobsFromConfig(FileConfiguration config, String fileName) {
@@ -114,73 +105,7 @@ public class LootManager {
                 MobLootConfig mobLootConfig = new MobLootConfig(mobId, lootItems, globalMinDrops, globalMaxDrops, 
                         overrideVanillaDrops, processVanillaDrops);
                 mobLootMap.put(normalizedId, mobLootConfig);
-                plugin.getLogger().info("Loaded loot for mob: " + mobId + " (normalized: " + normalizedId + ") with " + lootItems.size() + " items" +
-                        (overrideVanillaDrops ? " [override: true]" : "") +
-                        (processVanillaDrops ? " [process-vanilla-drops: true]" : ""));
                 mobCount++;
-            } else {
-                plugin.getLogger().warning("No loot items found for mob: " + mobId);
-            }
-        }
-
-        return mobCount;
-    }
-
-    private int loadMobsFromSection(ConfigurationSection mobsSection, String source) {
-        int mobCount = 0;
-
-        for (String mobId : mobsSection.getKeys(false)) {
-            ConfigurationSection mobSection = mobsSection.getConfigurationSection(mobId);
-            if (mobSection == null) continue;
-
-            int globalMinDrops = mobSection.getInt("min-drops", 0);
-            int globalMaxDrops = mobSection.getInt("max-drops", globalMinDrops);
-            boolean overrideVanillaDrops = mobSection.getBoolean("override-vanilla-drops", false);
-            boolean processVanillaDrops = mobSection.getBoolean("process-vanilla-drops", false);
-
-            List<LootItem> lootItems = new ArrayList<>();
-
-            if (mobSection.isList("loot")) {
-                List<String> lootList = mobSection.getStringList("loot");
-                for (String lootLine : lootList) {
-                    LootItem item = parseNewFormatLoot(lootLine);
-                    if (item != null) {
-                        lootItems.add(item);
-                    }
-                }
-            } else {
-
-                ConfigurationSection lootSection = mobSection.getConfigurationSection("loot");
-                if (lootSection != null) {
-                    for (String lootId : lootSection.getKeys(false)) {
-                        ConfigurationSection itemSection = lootSection.getConfigurationSection(lootId);
-                        if (itemSection == null) continue;
-
-                        String type = itemSection.getString("type", "VANILLA");
-                        String itemId = itemSection.getString("item");
-                        double chance = itemSection.getDouble("chance", 100.0);
-                        int amount = itemSection.getInt("amount", 1);
-                        boolean unidentified = itemSection.getBoolean("unidentified", false);
-
-
-                        int itemMinDrops = itemSection.getInt("min-drops", 0);
-                        int itemMaxDrops = itemSection.getInt("max-drops", itemMinDrops);
-
-                        if (itemId != null) {
-                            lootItems.add(new LootItem(type, itemId, chance, amount, unidentified, itemMinDrops, itemMaxDrops));
-                        }
-                    }
-                }
-            }
-
-            if (!lootItems.isEmpty() || processVanillaDrops) {
-                String normalizedId = normalizeMobId(mobId);
-                MobLootConfig mobLootConfig = new MobLootConfig(mobId, lootItems, globalMinDrops, globalMaxDrops,
-                        overrideVanillaDrops, processVanillaDrops);
-                mobLootMap.put(normalizedId, mobLootConfig);
-                plugin.getLogger().info("Loaded loot for mob: " + mobId + " (normalized: " + normalizedId + ") with " + lootItems.size() + " items" +
-                        (overrideVanillaDrops ? " [override: true]" : "") +
-                        (processVanillaDrops ? " [process-vanilla-drops: true]" : ""));
             } else {
                 plugin.getLogger().warning("No loot items found for mob: " + mobId);
             }

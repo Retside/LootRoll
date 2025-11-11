@@ -10,6 +10,7 @@ import me.newtale.lootroll.listener.ItemPickupListener;
 import me.newtale.lootroll.listener.MobDeathListener;
 import me.newtale.lootroll.manager.*;
 import me.newtale.lootroll.command.LootRollAdminCommand;
+import me.newtale.lootroll.util.ItemUtils;
 
 import com.github.retrooper.packetevents.PacketEvents;
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
@@ -34,6 +35,7 @@ public final class LootRoll extends JavaPlugin {
     public void onEnable() {
         PacketEvents.getAPI().init();
         
+        ItemUtils.initialize(this);
         configManager = new ConfigManager(this);
 
         if (!checkDependencies()) {
@@ -119,7 +121,7 @@ public final class LootRoll extends JavaPlugin {
     }
 
     private void registerListeners() {
-        getServer().getPluginManager().registerEvents(new MobDeathListener(lootManager, partyManager, rollManager), this);
+        getServer().getPluginManager().registerEvents(new MobDeathListener(lootManager, partyManager, rollManager, configManager), this);
         getServer().getPluginManager().registerEvents(new ItemPickupListener(rollManager), this);
     }
 

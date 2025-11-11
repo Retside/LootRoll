@@ -1,11 +1,13 @@
 package me.newtale.lootroll.listener;
 
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
+import me.newtale.lootroll.manager.ConfigManager;
 import me.newtale.lootroll.manager.LootManager;
 import me.newtale.lootroll.manager.PartyManager;
 import me.newtale.lootroll.manager.RollManager;
 import me.newtale.lootroll.model.LootItem;
 import me.newtale.lootroll.model.MobLootConfig;
+import me.newtale.lootroll.util.ItemUtils;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -28,13 +30,15 @@ public class MobDeathListener implements Listener {
     private final LootManager lootManager;
     private final PartyManager partyManager;
     private final RollManager rollManager;
+    private final ConfigManager configManager;
     private final Set<UUID> mythicHandledDeaths = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private Economy economy;
 
-    public MobDeathListener(LootManager lootManager, PartyManager partyManager, RollManager rollManager) {
+    public MobDeathListener(LootManager lootManager, PartyManager partyManager, RollManager rollManager, ConfigManager configManager) {
         this.lootManager = lootManager;
         this.partyManager = partyManager;
         this.rollManager = rollManager;
+        this.configManager = configManager;
         setupEconomy();
     }
 
@@ -96,12 +100,6 @@ public class MobDeathListener implements Listener {
                                     List<ItemStack> vanillaDrops, MobLootConfig config) {
         if (config == null) return false;
         
-        // Process exp and money loot
-        List<LootItem> expMoneyLoot = lootManager.getExpAndMoneyLoot(config);
-        if (!expMoneyLoot.isEmpty()) {
-            processExpAndMoneyLoot(killer, expMoneyLoot);
-        }
-        
         List<ItemStack> droppedItems = new java.util.ArrayList<>();
         
         if (config.shouldProcessVanillaDrops() && vanillaDrops != null) {
@@ -111,66 +109,96 @@ public class MobDeathListener implements Listener {
         List<ItemStack> customLoot = lootManager.generateLoot(mobId);
         droppedItems.addAll(customLoot);
         
-        if (droppedItems.isEmpty() && expMoneyLoot.isEmpty()) return false;
-
-        if (!partyManager.isPlayerInParty(killer) || !partyManager.hasMultiplePartyMembers(killer)) {
-            for (ItemStack item : droppedItems) {
-                rollManager.dropItemForSoloPlayer(item, killer, location);
-            }
-            return true;
-        }
-
-        List<Player> partyMembers = partyManager.getPartyMembers(killer);
-        if (partyMembers.size() <= 1) {
-            for (ItemStack item : droppedItems) {
-                rollManager.dropItemForSoloPlayer(item, killer, location);
-            }
-            return true;
-        }
-
-        for (ItemStack item : droppedItems) {
-            rollManager.startRollSession(item, partyMembers, location);
-        }
-        return true;
-    }
-
-    private void processExpAndMoneyLoot(Player killer, List<LootItem> expMoneyLoot) {
-        List<Player> partyMembers = null;
+        // Process exp and money loot - create ItemStacks for rolling (virtual, no physical drop)
+        List<LootItem> expMoneyLoot = lootManager.getExpAndMoneyLoot(config);
         boolean inParty = partyManager.isPlayerInParty(killer) && partyManager.hasMultiplePartyMembers(killer);
-        if (inParty) {
-            partyMembers = partyManager.getPartyMembers(killer);
-        }
-
+        boolean expMoneyProcessed = false;
+        
         for (LootItem lootItem : expMoneyLoot) {
             String type = lootItem.getType().toUpperCase();
             int[] amountRange = parseAmountRange(lootItem);
             int amount = ThreadLocalRandom.current().nextInt(amountRange[0], amountRange[1] + 1);
-
+            
             if ("EXP".equals(type)) {
-                if (lootItem.isSplit() && inParty && partyMembers != null && partyMembers.size() > 1) {
-                    int splitAmount = amount / partyMembers.size();
-                    for (Player member : partyMembers) {
-                        member.giveExp(splitAmount);
-                    }
+                expMoneyProcessed = true;
+                if (inParty) {
+                    // Roll for exp if in party (virtual item, no physical drop)
+                    ItemStack expItem = ItemUtils.createExpItemStack(amount, configManager);
+                    rollManager.startRollSession(expItem, partyManager.getPartyMembers(killer), location);
                 } else {
+                    // Give directly if not in party
                     killer.giveExp(amount);
                 }
             } else if ("MONEY".equals(type)) {
+                expMoneyProcessed = true;
                 if (economy == null) {
                     Bukkit.getLogger().warning("Vault not found! Money loot cannot be given.");
                     continue;
                 }
-                if (lootItem.isSplit() && inParty && partyMembers != null && partyMembers.size() > 1) {
-                    double splitAmount = (double) amount / partyMembers.size();
-                    for (Player member : partyMembers) {
-                        economy.depositPlayer(member, splitAmount);
-                    }
+                if (inParty) {
+                    // Roll for money if in party (virtual item, no physical drop)
+                    ItemStack moneyItem = ItemUtils.createMoneyItemStack(amount, configManager);
+                    rollManager.startRollSession(moneyItem, partyManager.getPartyMembers(killer), location);
                 } else {
+                    // Give directly if not in party
                     economy.depositPlayer(killer, amount);
                 }
             }
         }
+        
+        // Return true if we have items to drop OR if we processed exp/money (for override-vanilla-drops to work)
+        if (droppedItems.isEmpty() && !expMoneyProcessed) {
+            return false;
+        }
+
+        // Process dropped items if any
+        if (!droppedItems.isEmpty()) {
+            if (!partyManager.isPlayerInParty(killer) || !partyManager.hasMultiplePartyMembers(killer)) {
+                for (ItemStack item : droppedItems) {
+                    // Handle exp/money for solo players
+                    if (ItemUtils.isExpLoot(item)) {
+                        int amount = ItemUtils.getLootAmount(item);
+                        killer.giveExp(amount);
+                    } else if (ItemUtils.isMoneyLoot(item)) {
+                        if (economy != null) {
+                            int amount = ItemUtils.getLootAmount(item);
+                            economy.depositPlayer(killer, amount);
+                        }
+                    } else {
+                        rollManager.dropItemForSoloPlayer(item, killer, location);
+                    }
+                }
+                return true;
+            }
+
+            List<Player> partyMembers = partyManager.getPartyMembers(killer);
+            if (partyMembers.size() <= 1) {
+                for (ItemStack item : droppedItems) {
+                    // Handle exp/money for solo players
+                    if (ItemUtils.isExpLoot(item)) {
+                        int amount = ItemUtils.getLootAmount(item);
+                        killer.giveExp(amount);
+                    } else if (ItemUtils.isMoneyLoot(item)) {
+                        if (economy != null) {
+                            int amount = ItemUtils.getLootAmount(item);
+                            economy.depositPlayer(killer, amount);
+                        }
+                    } else {
+                        rollManager.dropItemForSoloPlayer(item, killer, location);
+                    }
+                }
+                return true;
+            }
+
+            for (ItemStack item : droppedItems) {
+                rollManager.startRollSession(item, partyMembers, location);
+            }
+        }
+        
+        // Return true if we processed something (items or exp/money)
+        return true;
     }
+
 
     private int[] parseAmountRange(LootItem lootItem) {
         int min = lootItem.getMinDrops();

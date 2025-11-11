@@ -1,5 +1,6 @@
 # User-specific stuff
 .idea/
+.vscode/
 
 # Compiled class file
 *.class
@@ -29,6 +30,7 @@ replay_pid*
 # Generaged files
 
 build/
+bin/
 
 # Gradle
 .gradle/
