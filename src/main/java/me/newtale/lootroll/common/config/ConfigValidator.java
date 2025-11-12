@@ -49,13 +49,14 @@ public class ConfigValidator {
             config = new PluginConfig();
             config.setConfigVersion(CURRENT_CONFIG_VERSION);
             saveConfig(configFile, config);
-            plugin.getLogger().info("Created new config.yml with default values");
             return config;
         }
         
         try {
+            List<String> fileLines = Files.readAllLines(configFile.toPath());
             Map<String, Object> data = loadYaml(configFile);
-            config = mapToPluginConfig(data);
+            validateUnknownProperties(data, configFile.getName(), fileLines);
+            config = mapToPluginConfig(data, fileLines);
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to load config.yml, creating backup and using defaults: " + e.getMessage());
             File backupFile = new File(configFile.getParentFile(), "config.yml.backup");
@@ -70,7 +71,6 @@ public class ConfigValidator {
         
         int configVersion = config.getConfigVersion();
         if (configVersion < CURRENT_CONFIG_VERSION) {
-            plugin.getLogger().info("Config version " + configVersion + " is outdated. Updating to version " + CURRENT_CONFIG_VERSION);
             config = updateConfig(config, configVersion, CURRENT_CONFIG_VERSION);
             config.setConfigVersion(CURRENT_CONFIG_VERSION);
             saveConfig(configFile, config);
@@ -90,7 +90,7 @@ public class ConfigValidator {
         }
     }
     
-    private PluginConfig mapToPluginConfig(Map<String, Object> data) {
+    private PluginConfig mapToPluginConfig(Map<String, Object> data, List<String> fileLines) {
         PluginConfig config = new PluginConfig();
         
         if (data.containsKey("config-version")) {
@@ -126,6 +126,7 @@ public class ConfigValidator {
             if (messagesData instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> messagesMap = (Map<String, Object>) messagesData;
+                validateUnknownMessageProperties(messagesMap, fileLines);
                 config.setMessages(mapToMessagesConfig(messagesMap));
             }
         }
@@ -250,6 +251,7 @@ public class ConfigValidator {
         }
         
         try {
+            List<String> fileLines = Files.readAllLines(dropFile.toPath());
             Map<String, Object> rawConfig = loadYaml(dropFile);
             
             for (Map.Entry<String, Object> entry : rawConfig.entrySet()) {
@@ -260,7 +262,8 @@ public class ConfigValidator {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> mobMap = (Map<String, Object>) mobData;
                     
-                    MobDropConfig mobConfig = convertToMobDropConfig(mobMap);
+                    int mobLineNumber = findLineNumber(fileLines, mobId);
+                    MobDropConfig mobConfig = convertToMobDropConfig(mobMap, dropFile.getName(), mobLineNumber);
                     mobConfigs.put(mobId, mobConfig);
                 }
             }
@@ -271,7 +274,19 @@ public class ConfigValidator {
         return mobConfigs;
     }
     
-    private MobDropConfig convertToMobDropConfig(Map<String, Object> mobMap) {
+    private int findLineNumber(List<String> lines, String key) {
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i).trim();
+            if (line.startsWith(key + ":") || line.equals(key + ":")) {
+                return i + 1;
+            }
+        }
+        return -1;
+    }
+    
+    private MobDropConfig convertToMobDropConfig(Map<String, Object> mobMap, String fileName, int baseLineNumber) {
+        validateUnknownDropProperties(mobMap, fileName, baseLineNumber);
+        
         MobDropConfig config = new MobDropConfig();
         
         if (mobMap.containsKey("min-drops")) {
@@ -306,9 +321,29 @@ public class ConfigValidator {
             Object lootValue = mobMap.get("loot");
             if (lootValue instanceof List) {
                 List<String> lootList = new ArrayList<>();
-                for (Object item : (List<?>) lootValue) {
-                    if (item instanceof String) {
-                        lootList.add((String) item);
+                @SuppressWarnings("unchecked")
+                List<Object> lootItems = (List<Object>) lootValue;
+                
+                try {
+                    List<String> fileLines = Files.readAllLines(new File(plugin.getDataFolder(), "drops/" + fileName).toPath());
+                    int lootLineNumber = findLootLineNumber(fileLines, mobMap, baseLineNumber);
+                    
+                    for (int i = 0; i < lootItems.size(); i++) {
+                        Object item = lootItems.get(i);
+                        if (item instanceof String) {
+                            String lootLine = (String) item;
+                            int actualLineNumber = findSpecificLootLineNumber(fileLines, lootLine, lootLineNumber, i);
+                            validateLootType(lootLine, fileName, actualLineNumber);
+                            lootList.add(lootLine);
+                        }
+                    }
+                } catch (Exception e) {
+                    for (Object item : lootItems) {
+                        if (item instanceof String) {
+                            String lootLine = (String) item;
+                            validateLootType(lootLine, fileName, -1);
+                            lootList.add(lootLine);
+                        }
                     }
                 }
                 config.setLoot(lootList);
@@ -316,6 +351,205 @@ public class ConfigValidator {
         }
         
         return config;
+    }
+    
+    private int findLootLineNumber(List<String> lines, Map<String, Object> mobMap, int baseLineNumber) {
+        for (int i = baseLineNumber - 1; i < lines.size(); i++) {
+            String line = lines.get(i).trim();
+            if (line.startsWith("loot:") || line.equals("loot:")) {
+                return i + 1;
+            }
+        }
+        return baseLineNumber + 1;
+    }
+    
+    private int findSpecificLootLineNumber(List<String> lines, String lootLine, int lootStartLine, int itemIndex) {
+        int foundItems = 0;
+        boolean inLootSection = false;
+        
+        for (int i = lootStartLine - 1; i < lines.size(); i++) {
+            String line = lines.get(i).trim();
+            
+            if (line.startsWith("loot:") || line.equals("loot:")) {
+                inLootSection = true;
+                continue;
+            }
+            
+            if (inLootSection && !line.isEmpty() && !line.startsWith(" ") && !line.startsWith("-")) {
+                break;
+            }
+            
+            if (inLootSection && line.startsWith("-")) {
+                String itemValue = line.substring(1).trim();
+                if (itemValue.contains(lootLine.substring(0, Math.min(20, lootLine.length()))) ||
+                    lootLine.contains(itemValue.substring(0, Math.min(20, itemValue.length())))) {
+                    if (foundItems == itemIndex) {
+                        return i + 1;
+                    }
+                    foundItems++;
+                }
+            }
+        }
+        
+        return lootStartLine + itemIndex + 1;
+    }
+    
+    private static final Set<String> VALID_LOOT_TYPES = Set.of(
+        "MMOITEMS", "MM", "MYTHICMOBS", "VANILLA", "EXP", "MONEY"
+    );
+    
+    private static final Set<String> VALID_CONFIG_PROPERTIES = Set.of(
+        "config-version", "party-system", "roll-distance", "roll-time", "messages"
+    );
+    
+    private static final Set<String> VALID_DROP_PROPERTIES = Set.of(
+        "min-drops", "max-drops", "override-vanilla-drops", "process-vanilla-drops", "loot"
+    );
+    
+    private void validateUnknownProperties(Map<String, Object> data, String fileName, List<String> fileLines) {
+        Set<String> unknownProperties = new HashSet<>();
+        for (String key : data.keySet()) {
+            if (!VALID_CONFIG_PROPERTIES.contains(key)) {
+                unknownProperties.add(key);
+            }
+        }
+        
+        if (!unknownProperties.isEmpty()) {
+            for (String prop : unknownProperties) {
+                int lineNumber = findPropertyLineNumber(fileLines, prop, 0);
+                if (lineNumber > 0) {
+                    plugin.getLogger().warning("Unknown property '" + prop + "' in " + fileName + " at line " + lineNumber);
+                } else {
+                    plugin.getLogger().warning("Unknown property '" + prop + "' in " + fileName);
+                }
+            }
+        }
+    }
+    
+    private void validateUnknownMessageProperties(Map<String, Object> messagesMap, List<String> fileLines) {
+        try {
+            Set<String> validFields = new HashSet<>();
+            Field[] fields = MessagesConfig.class.getDeclaredFields();
+            for (Field field : fields) {
+                validFields.add(getYamlFieldName(field));
+            }
+            
+            Set<String> unknownProperties = new HashSet<>();
+            for (String key : messagesMap.keySet()) {
+                if (!validFields.contains(key)) {
+                    unknownProperties.add(key);
+                }
+            }
+            
+            if (!unknownProperties.isEmpty()) {
+                int messagesLine = findPropertyLineNumber(fileLines, "messages", 0);
+                for (String prop : unknownProperties) {
+                    int lineNumber = findPropertyLineNumber(fileLines, prop, messagesLine);
+                    if (lineNumber > 0) {
+                        plugin.getLogger().warning("Unknown message property '" + prop + "' at line " + lineNumber);
+                    } else {
+                        plugin.getLogger().warning("Unknown message property '" + prop + "'");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error validating message properties: " + e.getMessage());
+        }
+    }
+    
+    private void validateUnknownDropProperties(Map<String, Object> mobMap, String fileName, int baseLineNumber) {
+        Set<String> unknownProperties = new HashSet<>();
+        for (String key : mobMap.keySet()) {
+            if (!VALID_DROP_PROPERTIES.contains(key)) {
+                unknownProperties.add(key);
+            }
+        }
+        
+        if (!unknownProperties.isEmpty()) {
+            try {
+                List<String> fileLines = Files.readAllLines(new File(plugin.getDataFolder(), "drops/" + fileName).toPath());
+                for (String prop : unknownProperties) {
+                    int lineNumber = findPropertyLineNumber(fileLines, prop, baseLineNumber);
+                    if (lineNumber > 0) {
+                        plugin.getLogger().warning("Unknown drop property '" + prop + "' in " + fileName + " at line " + lineNumber);
+                    } else {
+                        plugin.getLogger().warning("Unknown drop property '" + prop + "' in " + fileName);
+                    }
+                }
+            } catch (Exception e) {
+                plugin.getLogger().warning("Unknown drop properties: " + String.join(", ", unknownProperties) + " in " + fileName);
+            }
+        }
+    }
+    
+    private int findPropertyLineNumber(List<String> lines, String property, int baseLineNumber) {
+        for (int i = baseLineNumber - 1; i < lines.size(); i++) {
+            String line = lines.get(i).trim();
+            if (line.startsWith(property + ":") || line.equals(property + ":")) {
+                return i + 1;
+            }
+        }
+        return -1;
+    }
+    
+    private void validateLootType(String lootLine, String fileName, int lineNumber) {
+        try {
+            String trimmed = lootLine.trim();
+            int braceStart = trimmed.indexOf('{');
+            if (braceStart == -1) {
+                return;
+            }
+            
+            String lootType = trimmed.substring(0, braceStart).trim().toUpperCase();
+            
+            if (!VALID_LOOT_TYPES.contains(lootType)) {
+                String suggestion = findClosestLootType(lootType);
+                String location = lineNumber > 0 ? " at line " + lineNumber : "";
+                if (suggestion != null) {
+                    plugin.getLogger().warning("Unknown loot type '" + lootType + "' in " + fileName + location + ": " + lootLine);
+                    plugin.getLogger().warning("Did you mean '" + suggestion + "'?");
+                } else {
+                    plugin.getLogger().warning("Unknown loot type '" + lootType + "' in " + fileName + location + ": " + lootLine);
+                }
+            }
+        } catch (Exception e) {
+        }
+    }
+    
+    private String findClosestLootType(String invalidType) {
+        String closest = null;
+        int minDistance = Integer.MAX_VALUE;
+        
+        for (String validType : VALID_LOOT_TYPES) {
+            int distance = levenshteinDistance(invalidType, validType);
+            if (distance < minDistance && distance <= 2) {
+                minDistance = distance;
+                closest = validType;
+            }
+        }
+        
+        return closest;
+    }
+    
+    private int levenshteinDistance(String s1, String s2) {
+        int[][] dp = new int[s1.length() + 1][s2.length() + 1];
+        
+        for (int i = 0; i <= s1.length(); i++) {
+            for (int j = 0; j <= s2.length(); j++) {
+                if (i == 0) {
+                    dp[i][j] = j;
+                } else if (j == 0) {
+                    dp[i][j] = i;
+                } else {
+                    dp[i][j] = Math.min(
+                        Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1),
+                        dp[i - 1][j - 1] + (s1.charAt(i - 1) == s2.charAt(j - 1) ? 0 : 1)
+                    );
+                }
+            }
+        }
+        
+        return dp[s1.length()][s2.length()];
     }
     
     public void saveConfig(File configFile, PluginConfig config) throws IOException {
@@ -351,17 +585,6 @@ public class ConfigValidator {
             yaml.dump(data, writer);
         }
     }
-    
-    private Map<String, Object> pluginConfigToMap(PluginConfig config) {
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("config-version", config.getConfigVersion());
-        data.put("party-system", config.getPartySystem());
-        data.put("roll-distance", config.getRollDistance());
-        data.put("roll-time", config.getRollTime());
-        data.put("messages", messagesConfigToMap(config.getMessages()));
-        return data;
-    }
-    
     
     private Map<String, Object> messagesConfigToMap(MessagesConfig messages) {
         Map<String, Object> data = new LinkedHashMap<>();

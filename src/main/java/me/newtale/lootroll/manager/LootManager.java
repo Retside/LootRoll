@@ -96,7 +96,7 @@ public class LootManager {
             String trimmed = lootLine.trim();
             Matcher matcher = NEW_FORMAT_PATTERN.matcher(trimmed);
             if (!matcher.matches()) {
-                plugin.getLogger().warning("Invalid loot format: " + lootLine + " (trimmed: " + trimmed + ")");
+                plugin.getLogger().warning("Invalid loot format: " + lootLine);
                 return null;
             }
 
@@ -122,7 +122,6 @@ public class LootManager {
                 }
 
                 if (itemId == null) {
-                    plugin.getLogger().warning("No item identifier found in loot line: " + lootLine);
                     return null;
                 }
             } else {
