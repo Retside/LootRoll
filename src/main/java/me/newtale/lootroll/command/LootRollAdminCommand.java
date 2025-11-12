@@ -51,31 +51,31 @@ public class LootRollAdminCommand implements CommandExecutor, TabCompleter {
 				case "info": {
 					String pluginVersion = plugin.getPluginMeta().getVersion();
 					List<Component> lines = Arrays.asList(
-							MessageUtils.processMessageWithVariables("<yellow>=== LootRoll ===</yellow>", null, null, null),
-							MessageUtils.processMessageWithVariables("<gray>Version</gray> <white><ver></white>", null, null, null,
+							MessageUtils.processMessageWithVariables("<yellow>=== LootRoll ===", null, null, null),
+							MessageUtils.processMessageWithVariables("<gray>Version <white><ver>", null, null, null,
 									Placeholder.unparsed("ver", pluginVersion)),
-							MessageUtils.processMessageWithVariables("<gray>Mobs:</gray> <white><num></white>", null, null, null,
+							MessageUtils.processMessageWithVariables("<gray>Mobs: <white><num>", null, null, null,
 									Placeholder.unparsed("num", String.valueOf(lootManager.getTotalMobCount()))),
-							MessageUtils.processMessageWithVariables("<gray>Configs:</gray> <white><num></white>", null, null, null,
+							MessageUtils.processMessageWithVariables("<gray>Configs: <white><num>", null, null, null,
 									Placeholder.unparsed("num", String.valueOf(configManager.getDropConfigs().size()))),
-							MessageUtils.processMessageWithVariables("<gray>Roll distance:</gray> <white><num></white>", null, null, null,
+							MessageUtils.processMessageWithVariables("<gray>Roll distance: <white><num>", null, null, null,
 									Placeholder.unparsed("num", String.valueOf(configManager.getRollDistance()))),
-							MessageUtils.processMessageWithVariables("<gray>Roll time:</gray> <white><num>s</white>", null, null, null,
+							MessageUtils.processMessageWithVariables("<gray>Roll time: <white><num>s", null, null, null,
 									Placeholder.unparsed("num", String.valueOf(configManager.getRollTime()))),
-							MessageUtils.processMessageWithVariables("<gray>Party system:</gray> <white><name></white>", null, null, null,
+							MessageUtils.processMessageWithVariables("<gray>Party system: <white><name>", null, null, null,
 									Placeholder.unparsed("name", partyManager.getPartyType().name()))
 					);
 					lines.forEach(sender::sendMessage);
 					return true;
 				}
 				case "list": {
-					sender.sendMessage(MessageUtils.processMessageWithVariables("<yellow>=== Mobs ===</yellow>", null, null, null));
+					sender.sendMessage(MessageUtils.processMessageWithVariables("<yellow>=== Mobs ===", null, null, null));
 					if (lootManager.getTotalMobCount() == 0) {
-						sender.sendMessage(MessageUtils.processMessageWithVariables("<red>No mobs configured!</red>", null, null, null));
+						sender.sendMessage(MessageUtils.processMessageWithVariables("<red>No mobs configured!", null, null, null));
 					} else {
 						for (String mobId : lootManager.getAllMobIds()) {
 							int lootCount = lootManager.getMobLoot(mobId).size();
-							sender.sendMessage(MessageUtils.processMessageWithVariables("<gray>-</gray> <white><mob></white> <gray>(<num> loot items)</gray>", null, null, null,
+							sender.sendMessage(MessageUtils.processMessageWithVariables("<gray>- <white><mob> <gray>(<num> loot items)", null, null, null,
 									Placeholder.unparsed("mob", mobId),
 									Placeholder.unparsed("num", String.valueOf(lootCount))));
 						}
@@ -83,12 +83,12 @@ public class LootRollAdminCommand implements CommandExecutor, TabCompleter {
 					return true;
 				}
 				case "drops": {
-					sender.sendMessage(MessageUtils.processMessageWithVariables("<yellow>=== Drops ===</yellow>", null, null, null));
+					sender.sendMessage(MessageUtils.processMessageWithVariables("<yellow>=== Drops ===", null, null, null));
 					if (configManager.getDropConfigs().isEmpty()) {
-						sender.sendMessage(MessageUtils.processMessageWithVariables("<red>No drop configuration files found!</red>", null, null, null));
+						sender.sendMessage(MessageUtils.processMessageWithVariables("<red>No drop configuration files found!", null, null, null));
 					} else {
 						for (String fileName : configManager.getDropConfigs().keySet()) {
-							sender.sendMessage(MessageUtils.processMessageWithVariables("<gray>-</gray> <white><file>.yml</white>", null, null, null,
+							sender.sendMessage(MessageUtils.processMessageWithVariables("<gray>- <white><file>.yml", null, null, null,
 									Placeholder.unparsed("file", fileName)));
 						}
 					}
@@ -99,13 +99,13 @@ public class LootRollAdminCommand implements CommandExecutor, TabCompleter {
 
 		String pluginVersion = plugin.getPluginMeta().getVersion();
 		List<Component> help = Arrays.asList(
-				MessageUtils.processMessageWithVariables("<yellow>LootRoll v<ver></yellow>", null, null, null,
+				MessageUtils.processMessageWithVariables("<yellow>LootRoll v<ver>", null, null, null,
 						Placeholder.unparsed("ver", pluginVersion)),
-				MessageUtils.processMessageWithVariables("<yellow>Usage:</yellow>", null, null, null),
-				MessageUtils.processMessageWithVariables("<white>/lootroll reload</white> <gray>- Reload config</gray>", null, null, null),
-				MessageUtils.processMessageWithVariables("<white>/lootroll info</white> <gray>- Plugin info</gray>", null, null, null),
-				MessageUtils.processMessageWithVariables("<white>/lootroll list</white> <gray>- Mobs config list</gray>", null, null, null),
-				MessageUtils.processMessageWithVariables("<white>/lootroll drops</white> <gray>- Drops config list</gray>", null, null, null)
+				MessageUtils.processMessageWithVariables("<yellow>Usage:", null, null, null),
+				MessageUtils.processMessageWithVariables("<white>/lootroll reload <gray>- Reload config", null, null, null),
+				MessageUtils.processMessageWithVariables("<white>/lootroll info <gray>- Plugin info", null, null, null),
+				MessageUtils.processMessageWithVariables("<white>/lootroll list <gray>- Mobs config list", null, null, null),
+				MessageUtils.processMessageWithVariables("<white>/lootroll drops <gray>- Drops config list", null, null, null)
 		);
 		help.forEach(sender::sendMessage);
 		return true;

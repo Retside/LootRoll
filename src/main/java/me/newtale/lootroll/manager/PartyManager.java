@@ -26,7 +26,7 @@ public class PartyManager {
     public PartyManager(ConfigManager configManager) {
         this.configManager = configManager;
 
-        String partyTypeString = configManager.getConfig().getString("party-system", "parties").toLowerCase();
+        String partyTypeString = configManager.getPartySystem().toLowerCase();
 
         switch (partyTypeString) {
             case "mmocore":

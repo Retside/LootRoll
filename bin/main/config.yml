@@ -1,3 +1,6 @@
+# Configuration version - DO NOT MODIFY
+config-version: 1
+
 # Party system to use: 'parties' or 'mmocore'
 # parties - Uses the Parties plugin
 # mmocore - Uses MMOCore party system

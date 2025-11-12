@@ -1,16 +1,16 @@
 package me.newtale.lootroll.manager;
 
 import io.lumine.mythic.lib.api.item.NBTItem;
+import me.newtale.lootroll.common.config.MobDropConfig;
 import me.newtale.lootroll.model.LootItem;
 import me.newtale.lootroll.model.MobLootConfig;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.Type;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.items.MythicItem;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -39,63 +39,40 @@ public class LootManager {
     public void loadLootConfiguration() {
         mobLootMap.clear();
 
-        Map<String, FileConfiguration> dropConfigs = configManager.getDropConfigs();
+        Map<String, Map<String, MobDropConfig>> dropConfigs = configManager.getDropConfigs();
 
-        for (Map.Entry<String, FileConfiguration> entry : dropConfigs.entrySet()) {
+        for (Map.Entry<String, Map<String, MobDropConfig>> entry : dropConfigs.entrySet()) {
             String fileName = entry.getKey();
-            FileConfiguration dropConfig = entry.getValue();
-            loadMobsFromConfig(dropConfig, fileName);
+            Map<String, MobDropConfig> mobConfigs = entry.getValue();
+            loadMobsFromConfig(mobConfigs, fileName);
         }
     }
 
-    private int loadMobsFromConfig(FileConfiguration config, String fileName) {
+    private int loadMobsFromConfig(Map<String, MobDropConfig> mobConfigs, String fileName) {
         int mobCount = 0;
 
+        for (Map.Entry<String, MobDropConfig> entry : mobConfigs.entrySet()) {
+            String mobId = entry.getKey();
+            MobDropConfig mobConfig = entry.getValue();
+            
+            if (mobConfig == null) {
+                continue;
+            }
 
-        Set<String> rootKeys = config.getKeys(false);
-
-        for (String mobId : rootKeys) {
-            ConfigurationSection mobSection = config.getConfigurationSection(mobId);
-            if (mobSection == null) continue;
-
-
-            int globalMinDrops = mobSection.getInt("min-drops", 0);
-            int globalMaxDrops = mobSection.getInt("max-drops", globalMinDrops);
-            boolean overrideVanillaDrops = mobSection.getBoolean("override-vanilla-drops", false);
-            boolean processVanillaDrops = mobSection.getBoolean("process-vanilla-drops", false);
+            int globalMinDrops = mobConfig.getMinDrops();
+            int globalMaxDrops = mobConfig.getMaxDrops();
+            boolean overrideVanillaDrops = mobConfig.isOverrideVanillaDrops();
+            boolean processVanillaDrops = mobConfig.isProcessVanillaDrops();
 
             List<LootItem> lootItems = new ArrayList<>();
 
-
-            if (mobSection.isList("loot")) {
-                List<String> lootList = mobSection.getStringList("loot");
+            // Парсимо список лутів
+            List<String> lootList = mobConfig.getLoot();
+            if (lootList != null) {
                 for (String lootLine : lootList) {
                     LootItem item = parseNewFormatLoot(lootLine);
                     if (item != null) {
                         lootItems.add(item);
-                    }
-                }
-            } else {
-
-                ConfigurationSection lootSection = mobSection.getConfigurationSection("loot");
-                if (lootSection != null) {
-                    for (String lootId : lootSection.getKeys(false)) {
-                        ConfigurationSection itemSection = lootSection.getConfigurationSection(lootId);
-                        if (itemSection == null) continue;
-
-                        String type = itemSection.getString("type", "VANILLA");
-                        String itemId = itemSection.getString("item");
-                        double chance = itemSection.getDouble("chance", 100.0);
-                        int amount = itemSection.getInt("amount", 1);
-                        boolean unidentified = itemSection.getBoolean("unidentified", false);
-
-
-                        int itemMinDrops = itemSection.getInt("min-drops", 0);
-                        int itemMaxDrops = itemSection.getInt("max-drops", itemMinDrops);
-
-                        if (itemId != null) {
-                            lootItems.add(new LootItem(type, itemId, chance, amount, unidentified, itemMinDrops, itemMaxDrops));
-                        }
                     }
                 }
             }

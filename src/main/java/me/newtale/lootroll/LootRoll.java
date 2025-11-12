@@ -97,7 +97,6 @@ public final class LootRoll extends JavaPlugin {
             getLogger().warning("MMOItems plugin not found! Some features may not work.");
         }
 
-        getLogger().info("All dependencies found!");
         return true;
     }
 

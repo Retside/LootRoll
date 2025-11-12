@@ -1,26 +1,38 @@
 package me.newtale.lootroll.manager;
 
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import me.newtale.lootroll.common.config.ConfigValidator;
+import me.newtale.lootroll.common.config.MessagesConfig;
+import me.newtale.lootroll.common.config.MobDropConfig;
+import me.newtale.lootroll.common.config.PluginConfig;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ConfigManager {
 
     private final JavaPlugin plugin;
-    private FileConfiguration config;
-    private final Map<String, FileConfiguration> dropConfigs;
+    private final ConfigValidator configValidator;
+    private PluginConfig config;
+    private final Map<String, Map<String, MobDropConfig>> dropConfigs;
     private final File dropsFolder;
 
     public ConfigManager(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.configValidator = new ConfigValidator(plugin);
         this.dropConfigs = new HashMap<>();
 
-        plugin.saveDefaultConfig();
-        this.config = plugin.getConfig();
+        File configFile = new File(plugin.getDataFolder(), "config.yml");
+        try {
+            this.config = configValidator.validateAndUpdateConfig(configFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Failed to load config.yml: " + e.getMessage());
+            e.printStackTrace();
+            this.config = new PluginConfig();
+        }
 
         this.dropsFolder = new File(plugin.getDataFolder(), "drops");
         if (!dropsFolder.exists()) {
@@ -32,36 +44,73 @@ public class ConfigManager {
     }
 
     public void reloadConfig() {
-        plugin.reloadConfig();
-        this.config = plugin.getConfig();
+        File configFile = new File(plugin.getDataFolder(), "config.yml");
+        try {
+            this.config = configValidator.validateAndUpdateConfig(configFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Failed to reload config.yml: " + e.getMessage());
+            e.printStackTrace();
+        }
 
         loadDropConfigs();
     }
 
-    public FileConfiguration getConfig() {
+    public PluginConfig getConfig() {
         return config;
     }
 
-    // Добавляем getter для plugin
     public JavaPlugin getPlugin() {
         return plugin;
     }
 
     public String getMessage(String path, String defaultMessage) {
-        return config.getString("messages." + path, defaultMessage);
+        String message = getMessageByPath(path);
+        return message != null ? message : defaultMessage;
+    }
+
+    public String getMessageByPath(String path) {
+        if (config == null || config.getMessages() == null) {
+            return null;
+        }
+
+        MessagesConfig messages = config.getMessages();
+        
+        String camelCasePath = kebabToCamel(path);
+        
+        try {
+            java.lang.reflect.Field field = messages.getClass().getDeclaredField(camelCasePath);
+            field.setAccessible(true);
+            Object value = field.get(messages);
+            return value != null ? value.toString() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String kebabToCamel(String kebab) {
+        StringBuilder camel = new StringBuilder();
+        boolean nextUpperCase = false;
+        for (char c : kebab.toCharArray()) {
+            if (c == '-') {
+                nextUpperCase = true;
+            } else {
+                camel.append(nextUpperCase ? Character.toUpperCase(c) : c);
+                nextUpperCase = false;
+            }
+        }
+        return camel.toString();
     }
 
     public double getRollDistance() {
-        return config.getDouble("roll-distance", 100.0);
+        return config != null ? config.getRollDistance() : 100.0;
     }
 
     public int getRollTime() {
-        return config.getInt("roll-time", 30);
+        return config != null ? config.getRollTime() : 30;
     }
 
-    // Добавляем метод для получения типа party системы
     public String getPartySystem() {
-        return config.getString("party-system", "parties");
+        return config != null ? config.getPartySystem() : "parties";
     }
 
     private void loadDropConfigs() {
@@ -78,21 +127,20 @@ public class ConfigManager {
 
         for (File file : files) {
             try {
-                FileConfiguration dropConfig = YamlConfiguration.loadConfiguration(file);
+                Map<String, MobDropConfig> mobConfigs = configValidator.validateDropConfig(file);
                 String fileName = file.getName().replace(".yml", "");
-                dropConfigs.put(fileName, dropConfig);
-                plugin.getLogger().info("Loaded drop configuration: " + fileName);
+                dropConfigs.put(fileName, mobConfigs);
             } catch (Exception e) {
                 plugin.getLogger().warning("Failed to load drop configuration: " + file.getName() + " - " + e.getMessage());
             }
         }
     }
 
-    public Map<String, FileConfiguration> getDropConfigs() {
+    public Map<String, Map<String, MobDropConfig>> getDropConfigs() {
         return dropConfigs;
     }
 
-    public FileConfiguration getDropConfig(String fileName) {
+    public Map<String, MobDropConfig> getDropConfig(String fileName) {
         return dropConfigs.get(fileName);
     }
 
@@ -104,50 +152,49 @@ public class ConfigManager {
         File exampleFile = new File(dropsFolder, "example.yml");
         if (!exampleFile.exists()) {
             try {
-                exampleFile.createNewFile();
-                FileConfiguration newConfig = YamlConfiguration.loadConfiguration(exampleFile);
+                Map<String, MobDropConfig> exampleConfigs = new HashMap<>();
 
-                // Example with new format
-                newConfig.set("dark_forest_spider.min-drops", 1);
-                newConfig.set("dark_forest_spider.max-drops", 2);
-
-                List<String> spiderLoot = Arrays.asList(
-                        "mmoitems{type=ARMOR;item=MAGE_CROWN;unidentified=true} 1 .04", // Старий формат
-                        "mmoitems{type=MATERIAL;item=SPIDER_SILK} 2-5 .8", // Новий формат з дефісом
-                        "mmoitems{type=MATERIAL;item=WEB_ESSENCE} 1to3 .6", // Новий формат з "to"
-                        "mmoitems{type=MATERIAL;item=RARE_SILK} 1 .2", // Новий формат - одне число
+                // Example 1: dark_forest_spider
+                MobDropConfig spiderConfig = new MobDropConfig();
+                spiderConfig.setMinDrops(1);
+                spiderConfig.setMaxDrops(2);
+                spiderConfig.setLoot(java.util.Arrays.asList(
+                        "mmoitems{type=ARMOR;item=MAGE_CROWN;unidentified=true} 1 .04",
+                        "mmoitems{type=MATERIAL;item=SPIDER_SILK} 2-5 .8",
+                        "mmoitems{type=MATERIAL;item=WEB_ESSENCE} 1to3 .6",
+                        "mmoitems{type=MATERIAL;item=RARE_SILK} 1 .2",
                         "vanilla{item=iron_sword} 1 .5",
                         "mythicmobs{item=DarkBlade} 1 .1"
-                );
-                newConfig.set("dark_forest_spider.loot", spiderLoot);
+                ));
+                exampleConfigs.put("dark_forest_spider", spiderConfig);
 
-                // Another example with different mob
-                newConfig.set("fire_elemental.min-drops", 2);
-                newConfig.set("fire_elemental.max-drops", 4);
-
-                List<String> elementalLoot = Arrays.asList(
-                        "mmoitems{type=MATERIAL;item=FIRE_CRYSTAL} 1-3 .6", // Новий формат
+                // Example 2: fire_elemental
+                MobDropConfig elementalConfig = new MobDropConfig();
+                elementalConfig.setMinDrops(2);
+                elementalConfig.setMaxDrops(4);
+                elementalConfig.setLoot(java.util.Arrays.asList(
+                        "mmoitems{type=MATERIAL;item=FIRE_CRYSTAL} 1-3 .6",
                         "mmoitems{type=WEAPON;item=FLAME_SWORD;unidentified=true} 1 .15",
                         "vanilla{item=blaze_powder} 5 .9",
-                        "mythicmobs{item=ElementalCore} 0to2 .25" // Новий формат з "to"
-                );
-                newConfig.set("fire_elemental.loot", elementalLoot);
+                        "mythicmobs{item=ElementalCore} 0to2 .25"
+                ));
+                exampleConfigs.put("fire_elemental", elementalConfig);
 
-                // Boss example
-                newConfig.set("ancient_dragon.min-drops", 3);
-                newConfig.set("ancient_dragon.max-drops", 6);
-
-                List<String> dragonLoot = Arrays.asList(
-                        "mmoitems{type=MATERIAL;item=DRAGON_SCALE} 5-10 .95", // Новий формат
+                // Example 3: ancient_dragon
+                MobDropConfig dragonConfig = new MobDropConfig();
+                dragonConfig.setMinDrops(3);
+                dragonConfig.setMaxDrops(6);
+                dragonConfig.setLoot(java.util.Arrays.asList(
+                        "mmoitems{type=MATERIAL;item=DRAGON_SCALE} 5-10 .95",
                         "mmoitems{type=WEAPON;item=LEGENDARY_SWORD;unidentified=true} 1 .2",
                         "mmoitems{type=ARMOR;item=DRAGON_HELMET;unidentified=true} 1 .15",
                         "mmoitems{type=CONSUMABLE;item=DRAGON_HEART} 1 .1",
-                        "vanilla{item=diamond} 5to15 .8", // Новий формат з "to"
-                        "mythicmobs{item=Ancient_Rune} 1 .3" // Старий формат
-                );
-                newConfig.set("ancient_dragon.loot", dragonLoot);
+                        "vanilla{item=diamond} 5to15 .8",
+                        "mythicmobs{item=Ancient_Rune} 1 .3"
+                ));
+                exampleConfigs.put("ancient_dragon", dragonConfig);
 
-                newConfig.save(exampleFile);
+                configValidator.saveDropConfig(exampleFile, exampleConfigs);
                 plugin.getLogger().info("Created example configuration: example.yml");
             } catch (IOException e) {
                 plugin.getLogger().warning("Failed to create example configuration: " + e.getMessage());
