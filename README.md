@@ -56,9 +56,3 @@ zombie:
     - vanilla{item=iron_sword} 1 .1
     - money{split=true} 50-100 .5
 ```
-
-## Building
-
-```bash
-./gradlew build
-```
