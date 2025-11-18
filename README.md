@@ -1,5 +1,6 @@
 # LootRoll
-
+> **Note:** LootRoll is a paid plugin.  
+> You are free to view and compile the source code for personal use, but please consider [purchasing](https://builtbybit.com/resources/lootroll.82832/) a license to support ongoing development and future updates.
 A Minecraft plugin that implements a fair rolling system for loot distribution in parties. When mobs die, players in a party can roll for dropped items.
 
 ## Features
