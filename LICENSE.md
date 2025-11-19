@@ -5,8 +5,6 @@
 LootRoll is a **paid Minecraft plugin**.  
 The source code in this repository is provided for transparency and **personal, non-commercial use only**.
 
----
-
 ## Permissions
 
 You are allowed to:
@@ -14,8 +12,6 @@ You are allowed to:
 - **View** the source code.  
 - **Compile** the plugin **for personal use only**.  
 - **Modify** the source code **for personal use only**.
-
----
 
 ## Restrictions
 
@@ -27,8 +23,6 @@ You are **not allowed** to:
 - Upload this plugin to any marketplace (e.g., BuiltByBit, SpigotMC, Polymart).  
 - Use this plugin for **commercial purposes** without a valid license.
 
----
-
 ## Commercial Use
 
 A **paid license** is required for:
@@ -39,10 +33,3 @@ A **paid license** is required for:
 
 Purchase a license on BuiltByBit:  
 **https://builtbybit.com/resources/lootroll.82832/**
-
----
-
-## Warranty
-
-This software is provided **“as is”**, without any warranty of any kind.  
-The author is not responsible for any damages, data loss, or issues caused by the use of this plugin.
