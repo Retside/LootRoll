@@ -1,11 +1,13 @@
 package me.newtale.lootroll.manager;
 
+import me.newtale.lootroll.LootRoll;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import me.newtale.lootroll.common.config.ConfigValidator;
-import me.newtale.lootroll.common.config.MessagesConfig;
-import me.newtale.lootroll.common.config.MobDropConfig;
-import me.newtale.lootroll.common.config.PluginConfig;
+import me.newtale.lootroll.config.ConfigValidator;
+import me.newtale.lootroll.config.MessagesConfig;
+import me.newtale.lootroll.config.MobDropConfig;
+import me.newtale.lootroll.config.PluginConfig;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,13 +16,13 @@ import java.util.Map;
 
 public class ConfigManager {
 
-    private final JavaPlugin plugin;
+    private final LootRoll plugin;
     private final ConfigValidator configValidator;
     private PluginConfig config;
     private final Map<String, Map<String, MobDropConfig>> dropConfigs;
     private final File dropsFolder;
 
-    public ConfigManager(JavaPlugin plugin) {
+    public ConfigManager(LootRoll plugin) {
         this.plugin = plugin;
         this.configValidator = new ConfigValidator(plugin);
         this.dropConfigs = new HashMap<>();
@@ -155,17 +157,7 @@ public class ConfigManager {
                 Map<String, MobDropConfig> exampleConfigs = new HashMap<>();
 
                 // Example 1: dark_forest_spider
-                MobDropConfig spiderConfig = new MobDropConfig();
-                spiderConfig.setMinDrops(1);
-                spiderConfig.setMaxDrops(2);
-                spiderConfig.setLoot(java.util.Arrays.asList(
-                        "mmoitems{type=ARMOR;item=MAGE_CROWN;unidentified=true} 1 .04",
-                        "mmoitems{type=MATERIAL;item=SPIDER_SILK} 2-5 .8",
-                        "mmoitems{type=MATERIAL;item=WEB_ESSENCE} 1to3 .6",
-                        "mmoitems{type=MATERIAL;item=RARE_SILK} 1 .2",
-                        "vanilla{item=iron_sword} 1 .5",
-                        "mythicmobs{item=DarkBlade} 1 .1"
-                ));
+                MobDropConfig spiderConfig = getMobDropConfig();
                 exampleConfigs.put("dark_forest_spider", spiderConfig);
 
                 // Example 2: fire_elemental
@@ -200,5 +192,21 @@ public class ConfigManager {
                 plugin.getLogger().warning("Failed to create example configuration: " + e.getMessage());
             }
         }
+    }
+
+    @NotNull
+    private static MobDropConfig getMobDropConfig() {
+        MobDropConfig spiderConfig = new MobDropConfig();
+        spiderConfig.setMinDrops(1);
+        spiderConfig.setMaxDrops(2);
+        spiderConfig.setLoot(java.util.Arrays.asList(
+                "mmoitems{type=ARMOR;item=MAGE_CROWN;unidentified=true} 1 .04",
+                "mmoitems{type=MATERIAL;item=SPIDER_SILK} 2-5 .8",
+                "mmoitems{type=MATERIAL;item=WEB_ESSENCE} 1to3 .6",
+                "mmoitems{type=MATERIAL;item=RARE_SILK} 1 .2",
+                "vanilla{item=iron_sword} 1 .5",
+                "mythicmobs{item=DarkBlade} 1 .1"
+        ));
+        return spiderConfig;
     }
 }

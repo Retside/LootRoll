@@ -33,4 +33,5 @@ messages:
   no-rolls-unlocked: "<gray>Nobody rolled for <gray>[</gray><item><gray>]</gray>!"
   item-not-found: "<red>Item '<item>' not found!"
   exp-placeholder: "<green><amount> EXP</green>"
+  mmoexp-placeholder: "<green><amount> MMOCore EXP</green>"
   money-placeholder: "<gold><amount></gold>"

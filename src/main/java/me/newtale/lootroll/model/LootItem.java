@@ -10,18 +10,6 @@ public class LootItem {
     private final int maxDrops;
     private final boolean split;
 
-    public LootItem(String type, String itemId, double chance, int amount) {
-        this(type, itemId, chance, amount, false, 1, 1, false);
-    }
-
-    public LootItem(String type, String itemId, double chance, int amount, boolean unidentified) {
-        this(type, itemId, chance, amount, unidentified, 1, 1, false);
-    }
-
-    public LootItem(String type, String itemId, double chance, int amount, boolean unidentified, int minDrops, int maxDrops) {
-        this(type, itemId, chance, amount, unidentified, minDrops, maxDrops, false);
-    }
-
     public LootItem(String type, String itemId, double chance, int amount, boolean unidentified, int minDrops, int maxDrops, boolean split) {
         this.type = type;
         this.itemId = itemId;

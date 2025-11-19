@@ -1,13 +1,19 @@
 package me.newtale.lootroll.manager;
 
 import io.lumine.mythic.lib.api.item.NBTItem;
-import me.newtale.lootroll.common.config.MobDropConfig;
+import me.newtale.lootroll.config.MobDropConfig;
 import me.newtale.lootroll.model.LootItem;
 import me.newtale.lootroll.model.MobLootConfig;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.Type;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.items.MythicItem;
+import com.nexomc.nexo.api.NexoItems;
+
+import net.momirealms.craftengine.bukkit.api.CraftEngineItems;
+import net.momirealms.craftengine.core.item.CustomItem;
+import net.momirealms.craftengine.core.item.ItemBuildContext;
+import net.momirealms.craftengine.core.util.Key;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -48,8 +54,7 @@ public class LootManager {
         }
     }
 
-    private int loadMobsFromConfig(Map<String, MobDropConfig> mobConfigs, String fileName) {
-        int mobCount = 0;
+    private void loadMobsFromConfig(Map<String, MobDropConfig> mobConfigs, String fileName) {
 
         for (Map.Entry<String, MobDropConfig> entry : mobConfigs.entrySet()) {
             String mobId = entry.getKey();
@@ -66,7 +71,6 @@ public class LootManager {
 
             List<LootItem> lootItems = new ArrayList<>();
 
-            // Парсимо список лутів
             List<String> lootList = mobConfig.getLoot();
             if (lootList != null) {
                 for (String lootLine : lootList) {
@@ -82,13 +86,11 @@ public class LootManager {
                 MobLootConfig mobLootConfig = new MobLootConfig(mobId, lootItems, globalMinDrops, globalMaxDrops, 
                         overrideVanillaDrops, processVanillaDrops);
                 mobLootMap.put(normalizedId, mobLootConfig);
-                mobCount++;
             } else {
                 plugin.getLogger().warning("No loot items found for mob: " + mobId);
             }
         }
 
-        return mobCount;
     }
 
     private LootItem parseNewFormatLoot(String lootLine) {
@@ -106,12 +108,10 @@ public class LootManager {
             double chanceDecimal = Double.parseDouble(matcher.group(4));
             double chance = chanceDecimal * 100.0;
 
-            // Parse parameters inside curly braces
             Map<String, String> params = parseParameters(parameters);
 
-            // For EXP and MONEY types, itemId is not required
             String itemId = null;
-            if (!"EXP".equals(lootType) && !"MONEY".equals(lootType)) {
+            if (!"EXP".equals(lootType) && !"MONEY".equals(lootType) && !"MMOEXP".equals(lootType)) {
                 String type = params.get("type");
                 String item = params.get("item");
 
@@ -125,30 +125,17 @@ public class LootManager {
                     return null;
                 }
             } else {
-                // For EXP and MONEY, use the type as itemId for consistency
                 itemId = lootType.toLowerCase();
             }
 
             boolean unidentified = Boolean.parseBoolean(params.getOrDefault("unidentified", "false"));
             boolean split = Boolean.parseBoolean(params.getOrDefault("split", "false"));
 
-            // Parse min-drops and max-drops from new or legacy format
-            int minDrops, maxDrops;
+            int[] dropRange = parseDropRange(amountStr);
+            int minDrops = dropRange[0];
+            int maxDrops = dropRange[1];
 
-            // First, check legacy-style parameters in curly braces
-            if (params.containsKey("min-drops") || params.containsKey("max-drops")) {
-                // Legacy: take from parameters
-                minDrops = Integer.parseInt(params.getOrDefault("min-drops", "1"));
-                maxDrops = Integer.parseInt(params.getOrDefault("max-drops", String.valueOf(minDrops)));
-            } else {
-                // New format: parse from amountStr
-                int[] dropRange = parseDropRange(amountStr);
-                minDrops = dropRange[0];
-                maxDrops = dropRange[1];
-            }
-
-            // amount for legacy logic (number of items, not drops)
-            int amount = 1; // Default 1
+            int amount = 1;
 
             return new LootItem(lootType, itemId, chance, amount, unidentified, minDrops, maxDrops, split);
 
@@ -160,7 +147,6 @@ public class LootManager {
 
     private int[] parseDropRange(String amountStr) {
         try {
-            // Check "X-Y" format
             if (amountStr.contains("-")) {
                 String[] parts = amountStr.split("-", 2);
                 int min = Integer.parseInt(parts[0]);
@@ -168,7 +154,6 @@ public class LootManager {
                 return new int[]{min, max};
             }
 
-            // Check "XtoY" format
             if (amountStr.contains("to")) {
                 String[] parts = amountStr.split("to", 2);
                 int min = Integer.parseInt(parts[0]);
@@ -176,13 +161,11 @@ public class LootManager {
                 return new int[]{min, max};
             }
 
-            // Single number → min and max are equal
             int value = Integer.parseInt(amountStr);
             return new int[]{value, value};
 
         } catch (Exception e) {
             plugin.getLogger().warning("Error parsing drop range '" + amountStr + "': " + e.getMessage());
-            // Fallback: return 1-1
             return new int[]{1, 1};
         }
     }
@@ -269,9 +252,9 @@ public class LootManager {
                 continue;
             }
 
-            // Skip exp and money items - they are handled separately
+            // Skip exp, money, and mmoexp - they are handled separately
             String itemType = selectedItem.getType().toUpperCase();
-            if ("EXP".equals(itemType) || "MONEY".equals(itemType)) {
+            if ("EXP".equals(itemType) || "MONEY".equals(itemType) || "MMOEXP".equals(itemType)) {
                 availableItems.remove(selectedItem);
                 continue;
             }
@@ -282,7 +265,6 @@ public class LootManager {
             availableItems.remove(selectedItem);
         }
 
-        // Stack identical items together
         return stackIdenticalItems(items);
     }
 
@@ -294,7 +276,6 @@ public class LootManager {
             
             boolean found = false;
             for (ItemStack stacked : stackedItems) {
-                // Use isSimilar to check if items can be stacked
                 if (stacked.isSimilar(item)) {
                     int newAmount = stacked.getAmount() + item.getAmount();
                     int maxStackSize = stacked.getMaxStackSize();
@@ -326,8 +307,7 @@ public class LootManager {
         
         for (LootItem lootItem : mobLootConfig.getLootItems()) {
             String itemType = lootItem.getType().toUpperCase();
-            if ("EXP".equals(itemType) || "MONEY".equals(itemType)) {
-                // Check chance
+            if ("EXP".equals(itemType) || "MONEY".equals(itemType) || "MMOEXP".equals(itemType)) {
                 if (ThreadLocalRandom.current().nextDouble(100.0) <= lootItem.getChance()) {
                     expMoneyItems.add(lootItem);
                 }
@@ -394,6 +374,35 @@ public class LootManager {
                             }
                         } catch (Exception e) {
                             plugin.getLogger().warning("Failed to create MythicMobs item: " + lootItem.getItemId() + " - " + e.getMessage());
+                        }
+                    }
+                    break;
+
+                case "NEXO":
+                    if (Bukkit.getPluginManager().getPlugin("Nexo") != null) {
+                        try {
+                            if (NexoItems.exists(lootItem.getItemId())) {
+                                item = NexoItems.itemFromId(lootItem.getItemId()).build();
+                                if (lootItem.getAmount() > 1) {
+                                    item.setAmount(lootItem.getAmount());
+                                }
+                            }
+                        } catch (Exception e) {
+                            plugin.getLogger().warning("Failed to create Nexo item: " + lootItem.getItemId() + " - " + e.getMessage());
+                        }
+                    }
+                    break;
+
+                case "CRAFTENGINE":
+                    if (Bukkit.getPluginManager().getPlugin("CraftEngine") != null) {
+                        try {
+                            Key itemId = Key.of(lootItem.getItemId());
+                            CustomItem<ItemStack> customItem = CraftEngineItems.byId(itemId);
+                            if (customItem != null) {
+                                item = customItem.buildItemStack(ItemBuildContext.empty(), lootItem.getAmount());
+                            }
+                        } catch (Exception e) {
+                            plugin.getLogger().warning("Failed to create CraftEngine item: " + lootItem.getItemId() + " - " + e.getMessage());
                         }
                     }
                     break;

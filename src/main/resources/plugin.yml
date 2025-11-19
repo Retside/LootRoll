@@ -5,7 +5,7 @@ api-version: "1.21"
 authors: [Ney]
 website: https://ney-dev.xyz/
 depend: [packetevents]
-softdepend: [MMOItems, MythicMobs, Parties, MMOCore]
+softdepend: [MMOItems, MythicMobs, Parties, MMOCore, Nexo]
 
 commands:
   lootroll:

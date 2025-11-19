@@ -3,14 +3,19 @@ package me.newtale.lootroll.manager;
 import me.newtale.lootroll.api.event.*;
 import me.newtale.lootroll.model.RollSession;
 import me.newtale.lootroll.util.*;
+import net.Indyuce.mmocore.api.player.PlayerData;
+import net.Indyuce.mmocore.experience.EXPSource;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.milkbowl.vault.economy.Economy;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
@@ -53,7 +58,7 @@ public class RollManager {
 
         // Don't create physical item for exp/money loot
         Item droppedItem = null;
-        boolean isVirtualLoot = ItemUtils.isExpLoot(itemStack) || ItemUtils.isMoneyLoot(itemStack);
+        boolean isVirtualLoot = ItemUtils.isExpLoot(itemStack) || ItemUtils.isMoneyLoot(itemStack) || ItemUtils.isMmoExpLoot(itemStack);
         
         if (!isVirtualLoot) {
             droppedItem = RollUtils.createDroppedItem(location, itemStack);
@@ -472,12 +477,22 @@ public class RollManager {
         if (ItemUtils.isExpLoot(item)) {
             int amount = ItemUtils.getLootAmount(item);
             winner.giveExp(amount);
+        } else if (ItemUtils.isMmoExpLoot(item)) {
+            int amount = ItemUtils.getLootAmount(item);
+            if (Bukkit.getPluginManager().getPlugin("MMOCore") != null) {
+                try {
+                    PlayerData playerData = PlayerData.get(winner.getUniqueId());
+                    playerData.giveExperience(amount, EXPSource.OTHER);
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Failed to give MMOCore exp: " + e.getMessage());
+                }
+            }
         } else if (ItemUtils.isMoneyLoot(item)) {
             if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
-                org.bukkit.plugin.RegisteredServiceProvider<net.milkbowl.vault.economy.Economy> rsp = 
-                    Bukkit.getServer().getServicesManager().getRegistration(net.milkbowl.vault.economy.Economy.class);
+                RegisteredServiceProvider<Economy> rsp = 
+                    Bukkit.getServer().getServicesManager().getRegistration(Economy.class);
                 if (rsp != null) {
-                    net.milkbowl.vault.economy.Economy economy = rsp.getProvider();
+                    Economy economy = rsp.getProvider();
                     int amount = ItemUtils.getLootAmount(item);
                     economy.depositPlayer(winner, amount);
                 }

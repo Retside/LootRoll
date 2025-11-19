@@ -65,13 +65,33 @@ public class ItemUtils {
         return item;
     }
 
+    public static ItemStack createMmoExpItemStack(int amount, ConfigManager configManager) {
+        ItemStack item = new ItemStack(Material.EXPERIENCE_BOTTLE);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            PersistentDataContainer pdc = meta.getPersistentDataContainer();
+            pdc.set(LOOT_TYPE_KEY, PersistentDataType.STRING, "MMOEXP");
+            pdc.set(LOOT_AMOUNT_KEY, PersistentDataType.INTEGER, amount);
+            
+            if (configManager != null) {
+                String placeholder = configManager.getMessage("mmoexp-placeholder", "<green><amount> MMOCore EXP</green>");
+                MiniMessage miniMessage = MiniMessage.miniMessage();
+                Component displayName = miniMessage.deserialize(placeholder, Placeholder.unparsed("amount", String.valueOf(amount)));
+                meta.displayName(displayName);
+            }
+            
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
     public static boolean isExpLoot(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return false;
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return false;
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         return pdc.has(LOOT_TYPE_KEY, PersistentDataType.STRING) && 
-               "EXP".equals(pdc.get(LOOT_TYPE_KEY, PersistentDataType.STRING));
+            "EXP".equals(pdc.get(LOOT_TYPE_KEY, PersistentDataType.STRING));
     }
 
     public static boolean isMoneyLoot(ItemStack item) {
@@ -80,7 +100,16 @@ public class ItemUtils {
         if (meta == null) return false;
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         return pdc.has(LOOT_TYPE_KEY, PersistentDataType.STRING) && 
-               "MONEY".equals(pdc.get(LOOT_TYPE_KEY, PersistentDataType.STRING));
+            "MONEY".equals(pdc.get(LOOT_TYPE_KEY, PersistentDataType.STRING));
+    }
+
+    public static boolean isMmoExpLoot(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return false;
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        return pdc.has(LOOT_TYPE_KEY, PersistentDataType.STRING) && 
+            "MMOEXP".equals(pdc.get(LOOT_TYPE_KEY, PersistentDataType.STRING));
     }
 
     public static int getLootAmount(ItemStack item) {
@@ -112,6 +141,17 @@ public class ItemUtils {
                 return miniMessage.deserialize(placeholder, Placeholder.unparsed("amount", String.valueOf(amount)));
             }
             return Component.text(amount + " EXP");
+        }
+
+        // Check for mmoexp loot
+        if (isMmoExpLoot(item)) {
+            int amount = getLootAmount(item);
+            if (configManager != null) {
+                String placeholder = configManager.getMessage("mmoexp-placeholder", "<green><amount> MMOCore EXP</green>");
+                MiniMessage miniMessage = MiniMessage.miniMessage();
+                return miniMessage.deserialize(placeholder, Placeholder.unparsed("amount", String.valueOf(amount)));
+            }
+            return Component.text(amount + " MMOCore EXP");
         }
 
         // Check for money loot

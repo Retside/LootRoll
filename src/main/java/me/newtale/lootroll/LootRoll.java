@@ -97,6 +97,14 @@ public final class LootRoll extends JavaPlugin {
             getLogger().warning("MMOItems plugin not found! Some features may not work.");
         }
 
+        if (Bukkit.getPluginManager().getPlugin("Nexo") == null) {
+            getLogger().warning("Nexo plugin not found! Some features may not work.");
+        }
+
+        if (Bukkit.getPluginManager().getPlugin("CraftEngine") == null) {
+            getLogger().warning("CraftEngine plugin not found! Some features may not work.");
+        }
+
         return true;
     }
 
@@ -120,7 +128,7 @@ public final class LootRoll extends JavaPlugin {
     }
 
     private void registerListeners() {
-        getServer().getPluginManager().registerEvents(new MobDeathListener(lootManager, partyManager, rollManager, configManager), this);
+        getServer().getPluginManager().registerEvents(new MobDeathListener(this), this);
         getServer().getPluginManager().registerEvents(new ItemPickupListener(rollManager), this);
     }
 

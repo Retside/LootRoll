@@ -1,6 +1,7 @@
 package me.newtale.lootroll.listener;
 
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
+import me.newtale.lootroll.LootRoll;
 import me.newtale.lootroll.manager.ConfigManager;
 import me.newtale.lootroll.manager.LootManager;
 import me.newtale.lootroll.manager.PartyManager;
@@ -8,6 +9,8 @@ import me.newtale.lootroll.manager.RollManager;
 import me.newtale.lootroll.model.LootItem;
 import me.newtale.lootroll.model.MobLootConfig;
 import me.newtale.lootroll.util.ItemUtils;
+import net.Indyuce.mmocore.api.player.PlayerData;
+import net.Indyuce.mmocore.experience.EXPSource;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -18,27 +21,26 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.RegisteredServiceProvider;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class MobDeathListener implements Listener {
 
-    private final LootManager lootManager;
+    private final LootRoll plugin;
+    private LootManager lootManager = null;
     private final PartyManager partyManager;
     private final RollManager rollManager;
     private final ConfigManager configManager;
     private final Set<UUID> mythicHandledDeaths = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private Economy economy;
 
-    public MobDeathListener(LootManager lootManager, PartyManager partyManager, RollManager rollManager, ConfigManager configManager) {
-        this.lootManager = lootManager;
-        this.partyManager = partyManager;
-        this.rollManager = rollManager;
-        this.configManager = configManager;
+    public MobDeathListener(LootRoll plugin) {
+        this.plugin = plugin;
+        this.lootManager = plugin.getLootManager();
+        this.partyManager = plugin.getPartyManager();
+        this.rollManager = plugin.getRollManager();
+        this.configManager = plugin.getConfigManager();
         setupEconomy();
     }
 
@@ -96,11 +98,11 @@ public class MobDeathListener implements Listener {
         return processMobDeath(killer, mobId, location, null, config);
     }
 
-    private boolean processMobDeath(Player killer, String mobId, Location location, 
+    private boolean processMobDeath(Player killer, String mobId, Location location,
                                     List<ItemStack> vanillaDrops, MobLootConfig config) {
         if (config == null) return false;
         
-        List<ItemStack> droppedItems = new java.util.ArrayList<>();
+        List<ItemStack> droppedItems = new ArrayList<>();
         
         if (config.shouldProcessVanillaDrops() && vanillaDrops != null) {
             droppedItems.addAll(vanillaDrops);
@@ -109,7 +111,7 @@ public class MobDeathListener implements Listener {
         List<ItemStack> customLoot = lootManager.generateLoot(mobId);
         droppedItems.addAll(customLoot);
         
-        // Process exp and money loot - create ItemStacks for rolling (virtual, no physical drop)
+        // Process exp and money loot - create ItemStacks for rolling
         List<LootItem> expMoneyLoot = lootManager.getExpAndMoneyLoot(config);
         boolean inParty = partyManager.isPlayerInParty(killer) && partyManager.hasMultiplePartyMembers(killer);
         boolean expMoneyProcessed = false;
@@ -118,40 +120,53 @@ public class MobDeathListener implements Listener {
             String type = lootItem.getType().toUpperCase();
             int[] amountRange = parseAmountRange(lootItem);
             int amount = ThreadLocalRandom.current().nextInt(amountRange[0], amountRange[1] + 1);
-            
-            if ("EXP".equals(type)) {
-                expMoneyProcessed = true;
-                if (inParty) {
-                    // Roll for exp if in party (virtual item, no physical drop)
-                    ItemStack expItem = ItemUtils.createExpItemStack(amount, configManager);
-                    rollManager.startRollSession(expItem, partyManager.getPartyMembers(killer), location);
-                } else {
-                    // Give directly if not in party
-                    killer.giveExp(amount);
+
+            switch (type) {
+                case "EXP" -> {
+                    expMoneyProcessed = true;
+                    if (inParty) {
+                        ItemStack expItem = ItemUtils.createExpItemStack(amount, configManager);
+                        rollManager.startRollSession(expItem, partyManager.getPartyMembers(killer), location);
+                    } else {
+                        killer.giveExp(amount);
+                    }
                 }
-            } else if ("MONEY".equals(type)) {
-                expMoneyProcessed = true;
-                if (economy == null) {
-                    Bukkit.getLogger().warning("Vault not found! Money loot cannot be given.");
-                    continue;
+                case "MMOEXP" -> {
+                    expMoneyProcessed = true;
+                    if (inParty) {
+                        ItemStack mmoExpItem = ItemUtils.createMmoExpItemStack(amount, configManager);
+                        rollManager.startRollSession(mmoExpItem, partyManager.getPartyMembers(killer), location);
+                    } else {
+                        if (Bukkit.getPluginManager().getPlugin("MMOCore") != null) {
+                            try {
+                                PlayerData playerData = PlayerData.get(killer.getUniqueId());
+                                playerData.giveExperience(amount, EXPSource.OTHER);
+                            } catch (Exception e) {
+                                plugin.getLogger().warning("Failed to give MMOCore exp: " + e.getMessage());
+                            }
+                        }
+                    }
                 }
-                if (inParty) {
-                    // Roll for money if in party (virtual item, no physical drop)
-                    ItemStack moneyItem = ItemUtils.createMoneyItemStack(amount, configManager);
-                    rollManager.startRollSession(moneyItem, partyManager.getPartyMembers(killer), location);
-                } else {
-                    // Give directly if not in party
-                    economy.depositPlayer(killer, amount);
+                case "MONEY" -> {
+                    expMoneyProcessed = true;
+                    if (economy == null) {
+                        plugin.getLogger().warning("Vault not found! Money loot cannot be given.");
+                        continue;
+                    }
+                    if (inParty) {
+                        ItemStack moneyItem = ItemUtils.createMoneyItemStack(amount, configManager);
+                        rollManager.startRollSession(moneyItem, partyManager.getPartyMembers(killer), location);
+                    } else {
+                        economy.depositPlayer(killer, amount);
+                    }
                 }
             }
         }
         
-        // Return true if we have items to drop OR if we processed exp/money (for override-vanilla-drops to work)
         if (droppedItems.isEmpty() && !expMoneyProcessed) {
             return false;
         }
 
-        // Process dropped items if any
         if (!droppedItems.isEmpty()) {
             if (!partyManager.isPlayerInParty(killer) || !partyManager.hasMultiplePartyMembers(killer)) {
                 for (ItemStack item : droppedItems) {
@@ -159,6 +174,16 @@ public class MobDeathListener implements Listener {
                     if (ItemUtils.isExpLoot(item)) {
                         int amount = ItemUtils.getLootAmount(item);
                         killer.giveExp(amount);
+                    } else if (ItemUtils.isMmoExpLoot(item)) {
+                        int amount = ItemUtils.getLootAmount(item);
+                        if (Bukkit.getPluginManager().getPlugin("MMOCore") != null) {
+                            try {
+                                PlayerData playerData = PlayerData.get(killer.getUniqueId());
+                                playerData.giveExperience(amount, EXPSource.OTHER);
+                            } catch (Exception e) {
+                                plugin.getLogger().warning("Failed to give MMOCore exp: " + e.getMessage());
+                            }
+                        }
                     } else if (ItemUtils.isMoneyLoot(item)) {
                         if (economy != null) {
                             int amount = ItemUtils.getLootAmount(item);
@@ -178,6 +203,16 @@ public class MobDeathListener implements Listener {
                     if (ItemUtils.isExpLoot(item)) {
                         int amount = ItemUtils.getLootAmount(item);
                         killer.giveExp(amount);
+                    } else if (ItemUtils.isMmoExpLoot(item)) {
+                        int amount = ItemUtils.getLootAmount(item);
+                        if (Bukkit.getPluginManager().getPlugin("MMOCore") != null) {
+                            try {
+                                PlayerData playerData = PlayerData.get(killer.getUniqueId());
+                                playerData.giveExperience(amount, EXPSource.OTHER);
+                            } catch (Exception e) {
+                                plugin.getLogger().warning("Failed to give MMOCore exp: " + e.getMessage());
+                            }
+                        }
                     } else if (ItemUtils.isMoneyLoot(item)) {
                         if (economy != null) {
                             int amount = ItemUtils.getLootAmount(item);
@@ -195,7 +230,6 @@ public class MobDeathListener implements Listener {
             }
         }
         
-        // Return true if we processed something (items or exp/money)
         return true;
     }
 

@@ -1,4 +1,4 @@
-package me.newtale.lootroll.common.config;
+package me.newtale.lootroll.config;
 
 import java.util.ArrayList;
 import java.util.List;

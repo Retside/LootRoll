@@ -1,4 +1,4 @@
-package me.newtale.lootroll.common.config;
+package me.newtale.lootroll.config;
 
 public class MessagesConfig {
     
@@ -21,6 +21,7 @@ public class MessagesConfig {
     private String noRollsUnlocked = "<gray>Nobody rolled for <gray>[</gray><item><gray>]</gray>!";
     private String itemNotFound = "<red>Item '<item>' not found!";
     private String expPlaceholder = "<green><amount> EXP</green>";
+    private String mmoexpPlaceholder = "<green><amount> MMOCore EXP</green>";
     private String moneyPlaceholder = "<gold><amount></gold>";
     
     public MessagesConfig() {
@@ -178,6 +179,14 @@ public class MessagesConfig {
     
     public void setExpPlaceholder(String expPlaceholder) {
         this.expPlaceholder = expPlaceholder;
+    }
+    
+    public String getMmoexpPlaceholder() {
+        return mmoexpPlaceholder;
+    }
+    
+    public void setMmoexpPlaceholder(String mmoexpPlaceholder) {
+        this.mmoexpPlaceholder = mmoexpPlaceholder;
     }
     
     public String getMoneyPlaceholder() {

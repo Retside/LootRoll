@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public class PartyManager {
@@ -45,13 +46,6 @@ public class PartyManager {
         }
 
         configManager.getPlugin().getLogger().info("Using party system: " + this.partyType.name());
-    }
-
-    // Backwards compatibility constructor
-    public PartyManager(PartiesAPI partiesAPI, ConfigManager configManager) {
-        this.partiesAPI = partiesAPI;
-        this.configManager = configManager;
-        this.partyType = PartyType.PARTIES;
     }
 
     private PartiesAPI getPartiesAPI() {
@@ -117,7 +111,7 @@ public class PartyManager {
 
             for (PlayerData memberData : party.getOnlineMembers()) {
                 Player member = memberData.getPlayer();
-                if (member != null && member.isOnline()) {
+                if (member.isOnline()) {
                     if (member.getLocation().distance(player.getLocation()) <= maxDistance) {
                         members.add(member);
                     }
@@ -137,7 +131,7 @@ public class PartyManager {
             PartyPlayer partyPlayer = partiesAPI.getPartyPlayer(player.getUniqueId());
             if (partyPlayer == null) return false;
 
-            Party party = partiesAPI.getParty(partyPlayer.getPartyId());
+            Party party = partiesAPI.getParty(Objects.requireNonNull(partyPlayer.getPartyId()));
             return party != null && party.getMembers().size() > 1;
         } catch (Exception e) {
             configManager.getPlugin().getLogger().warning("Error checking Parties plugin party for " + player.getName() + ": " + e.getMessage());
@@ -154,7 +148,7 @@ public class PartyManager {
             PartyPlayer partyPlayer = partiesAPI.getPartyPlayer(player.getUniqueId());
             if (partyPlayer == null) return members;
 
-            Party party = partiesAPI.getParty(partyPlayer.getPartyId());
+            Party party = partiesAPI.getParty(Objects.requireNonNull(partyPlayer.getPartyId()));
             if (party == null) return members;
 
             double maxDistance = configManager.getRollDistance();

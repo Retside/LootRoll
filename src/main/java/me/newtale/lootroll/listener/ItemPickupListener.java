@@ -18,9 +18,8 @@ public class ItemPickupListener implements Listener {
 
     @EventHandler
     public void onEntityPickupItem(EntityPickupItemEvent event) {
-        if (!(event.getEntity() instanceof Player)) return;
+        if (!(event.getEntity() instanceof Player player)) return;
 
-        Player player = (Player) event.getEntity();
         Item item = event.getItem();
 
         if (!rollManager.canPlayerPickupItem(player, item.getEntityId())) {

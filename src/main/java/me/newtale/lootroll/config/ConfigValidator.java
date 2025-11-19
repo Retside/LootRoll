@@ -1,4 +1,4 @@
-package me.newtale.lootroll.common.config;
+package me.newtale.lootroll.config;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import org.yaml.snakeyaml.DumperOptions;
@@ -71,14 +71,14 @@ public class ConfigValidator {
         
         int configVersion = config.getConfigVersion();
         if (configVersion < CURRENT_CONFIG_VERSION) {
-            config = updateConfig(config, configVersion, CURRENT_CONFIG_VERSION);
+            updateConfig(config, configVersion);
             config.setConfigVersion(CURRENT_CONFIG_VERSION);
             saveConfig(configFile, config);
         } else if (configVersion > CURRENT_CONFIG_VERSION) {
             plugin.getLogger().warning("Config version " + configVersion + " is newer than supported version " + CURRENT_CONFIG_VERSION + ". Some features may not work correctly.");
         }
-        
-        config = validateConfig(config);
+
+        validateConfig(config);
         saveConfig(configFile, config);
         
         return config;
@@ -181,7 +181,7 @@ public class ConfigValidator {
         return kebab.toString();
     }
     
-    private PluginConfig validateConfig(PluginConfig config) {
+    private void validateConfig(PluginConfig config) {
         PluginConfig defaultConfig = new PluginConfig();
         boolean updated = false;
         
@@ -213,8 +213,7 @@ public class ConfigValidator {
         if (updated) {
             plugin.getLogger().info("Added missing fields to config.yml with default values");
         }
-        
-        return config;
+
     }
     
     private boolean validateMessages(MessagesConfig messages, MessagesConfig defaultMessages) {
@@ -239,8 +238,8 @@ public class ConfigValidator {
         return updated;
     }
     
-    private PluginConfig updateConfig(PluginConfig config, int fromVersion, int toVersion) {
-        return validateConfig(config);
+    private void updateConfig(PluginConfig config, int fromVersion) {
+        validateConfig(config);
     }
     
     public Map<String, MobDropConfig> validateDropConfig(File dropFile) throws IOException {
@@ -330,8 +329,7 @@ public class ConfigValidator {
                     
                     for (int i = 0; i < lootItems.size(); i++) {
                         Object item = lootItems.get(i);
-                        if (item instanceof String) {
-                            String lootLine = (String) item;
+                        if (item instanceof String lootLine) {
                             int actualLineNumber = findSpecificLootLineNumber(fileLines, lootLine, lootLineNumber, i);
                             validateLootType(lootLine, fileName, actualLineNumber);
                             lootList.add(lootLine);
@@ -339,8 +337,7 @@ public class ConfigValidator {
                     }
                 } catch (Exception e) {
                     for (Object item : lootItems) {
-                        if (item instanceof String) {
-                            String lootLine = (String) item;
+                        if (item instanceof String lootLine) {
                             validateLootType(lootLine, fileName, -1);
                             lootList.add(lootLine);
                         }
@@ -356,7 +353,7 @@ public class ConfigValidator {
     private int findLootLineNumber(List<String> lines, Map<String, Object> mobMap, int baseLineNumber) {
         for (int i = baseLineNumber - 1; i < lines.size(); i++) {
             String line = lines.get(i).trim();
-            if (line.startsWith("loot:") || line.equals("loot:")) {
+            if (line.startsWith("loot:")) {
                 return i + 1;
             }
         }
@@ -370,7 +367,7 @@ public class ConfigValidator {
         for (int i = lootStartLine - 1; i < lines.size(); i++) {
             String line = lines.get(i).trim();
             
-            if (line.startsWith("loot:") || line.equals("loot:")) {
+            if (line.startsWith("loot:")) {
                 inLootSection = true;
                 continue;
             }
@@ -395,7 +392,7 @@ public class ConfigValidator {
     }
     
     private static final Set<String> VALID_LOOT_TYPES = Set.of(
-        "MMOITEMS", "MM", "MYTHICMOBS", "VANILLA", "EXP", "MONEY"
+        "MMOITEMS", "MM", "MYTHICMOBS", "VANILLA", "EXP", "MONEY", "NEXO", "MMOEXP", "CRAFTENGINE"
     );
     
     private static final Set<String> VALID_CONFIG_PROPERTIES = Set.of(
@@ -505,14 +502,12 @@ public class ConfigValidator {
             if (!VALID_LOOT_TYPES.contains(lootType)) {
                 String suggestion = findClosestLootType(lootType);
                 String location = lineNumber > 0 ? " at line " + lineNumber : "";
+                plugin.getLogger().warning("Unknown loot type '" + lootType + "' in " + fileName + location + ": " + lootLine);
                 if (suggestion != null) {
-                    plugin.getLogger().warning("Unknown loot type '" + lootType + "' in " + fileName + location + ": " + lootLine);
                     plugin.getLogger().warning("Did you mean '" + suggestion + "'?");
-                } else {
-                    plugin.getLogger().warning("Unknown loot type '" + lootType + "' in " + fileName + location + ": " + lootLine);
                 }
             }
-        } catch (Exception e) {
+        } catch (Exception ignored) {
         }
     }
     

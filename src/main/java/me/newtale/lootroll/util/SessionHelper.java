@@ -31,16 +31,16 @@ public class SessionHelper {
     }
 
     public static List<RollSession> getAvailableSessionsForPlayer(Player player,
-                                                                  Map<Player, List<RollSession>> playerActiveSessions,
-                                                                  Map<String, RollSession> activeRolls) {
+                                                                Map<Player, List<RollSession>> playerActiveSessions,
+                                                                Map<String, RollSession> activeRolls) {
         return getAvailableSessionsForPlayer(player, playerActiveSessions, activeRolls, false);
     }
 
 
     public static List<RollSession> getAvailableSessionsForPlayer(Player player,
-                                                                  Map<Player, List<RollSession>> playerActiveSessions,
-                                                                  Map<String, RollSession> activeRolls,
-                                                                  boolean isGreedRoll) {
+                                                                Map<Player, List<RollSession>> playerActiveSessions,
+                                                                Map<String, RollSession> activeRolls,
+                                                                boolean isGreedRoll) {
         List<RollSession> sessions = playerActiveSessions.get(player);
         if (sessions == null) {
             return List.of();

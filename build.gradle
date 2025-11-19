@@ -4,53 +4,63 @@ plugins {
 }
 
 group = 'me.newtale'
-version = '1.0.1'
+version = '1.1.0'
 
 repositories {
     mavenCentral()
     maven {
-        name = "papermc-repo"
-        url = "https://repo.papermc.io/repository/maven-public/"
+        name "papermc"
+        url "https://repo.papermc.io/repository/maven-public/"
     }
     maven {
-        name = "sonatype"
-        url = "https://oss.sonatype.org/content/groups/public/"
+        name "sonatype"
+        url "https://oss.sonatype.org/content/groups/public/"
     }
     maven {
-        name = "extendedclip"
-        url = 'https://repo.extendedclip.com/releases/'
+        name "extendedclip"
+        url "https://repo.extendedclip.com/releases/"
     }
     maven {
-        name = "lumine"
-        url = 'https://mvn.lumine.io/repository/maven-public/'
+        name "lumine"
+        url "https://mvn.lumine.io/repository/maven-public/"
     }
     maven {
-        name = "codemc"
-        url = uri("https://repo.codemc.io/repository/maven-releases/") }
-    maven {
-        name = "phoenix"
-        url = uri("https://nexus.phoenixdevt.fr/repository/maven-public/")
+        name "codemc"
+        url "https://repo.codemc.io/repository/maven-releases/"
     }
     maven {
-        name = 'alessiodp-repo'
-        url = 'https://repo.alessiodp.com/releases/'
+        name "phoenix"
+        url "https://nexus.phoenixdevt.fr/repository/maven-public/"
     }
     maven {
-        name = "jitpack"
-        url = "https://jitpack.io"
+        name "alessiodp"
+        url "https://repo.alessiodp.com/releases/"
     }
+    maven {
+        name "jitpack"
+        url "https://jitpack.io"
+    }
+    maven {
+        name "nexomcReleases"
+        url "https://repo.nexomc.com/releases"
+    }
+    maven { url 'https://repo.momirealms.net/releases/' }
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
-    compileOnly 'me.clip:placeholderapi:2.11.6'
-    compileOnly 'io.lumine:Mythic-Dist:5.6.1'
+    compileOnly("com.nexomc:nexo:1.15.0")
+    compileOnly("me.clip:placeholderapi:2.11.6")
+    compileOnly("io.lumine:Mythic-Dist:5.10.0")
     compileOnly("io.lumine:MythicLib-dist:1.7.1-SNAPSHOT")
     compileOnly("net.Indyuce:MMOItems-API:6.10.1-SNAPSHOT")
     compileOnly("net.Indyuce:MMOCore-API:1.12.1-SNAPSHOT")
     compileOnly("com.alessiodp.parties:parties-api:3.2.16")
     compileOnly("com.github.retrooper:packetevents-spigot:2.10.0")
-    compileOnly "com.github.MilkBowl:VaultAPI:1.7.1"
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
+    compileOnly("net.momirealms:craft-engine-core:0.0.65")
+    compileOnly("net.momirealms:craft-engine-bukkit:0.0.65")
+    
     
     implementation("org.yaml:snakeyaml:2.2")
 }
