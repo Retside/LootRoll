@@ -1,6 +1,6 @@
 # LootRoll License
 
-**Copyright (c) 2025 Ney**
+**Copyright (c) 2026 Ney**
 
 LootRoll is a **paid Minecraft plugin**.  
 The source code in this repository is provided for transparency and **personal, non-commercial use only**.
