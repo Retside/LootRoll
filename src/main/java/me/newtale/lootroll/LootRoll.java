@@ -94,15 +94,15 @@ public final class LootRoll extends JavaPlugin {
         }
 
         if (Bukkit.getPluginManager().getPlugin("MMOItems") == null) {
-            getLogger().warning("MMOItems plugin not found! Some features may not work.");
+            getLogger().info("MMOItems plugin not found! Some features may not work.");
         }
 
         if (Bukkit.getPluginManager().getPlugin("Nexo") == null) {
-            getLogger().warning("Nexo plugin not found! Some features may not work.");
+            getLogger().info("Nexo plugin not found! Some features may not work.");
         }
 
         if (Bukkit.getPluginManager().getPlugin("CraftEngine") == null) {
-            getLogger().warning("CraftEngine plugin not found! Some features may not work.");
+            getLogger().info("CraftEngine plugin not found! Some features may not work.");
         }
 
         return true;

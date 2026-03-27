@@ -1,5 +1,7 @@
 package me.newtale.lootroll.manager;
 
+import io.lumine.mythic.api.adapters.AbstractItemStack;
+import io.lumine.mythic.bukkit.BukkitAdapter;
 import io.lumine.mythic.lib.api.item.NBTItem;
 import me.newtale.lootroll.config.MobDropConfig;
 import me.newtale.lootroll.model.LootItem;
@@ -370,7 +372,13 @@ public class LootManager {
                         try {
                             Optional<MythicItem> mythicItem = MythicBukkit.inst().getItemManager().getItem(lootItem.getItemId());
                             if (mythicItem.isPresent()) {
-                                item = (ItemStack) mythicItem.get().generateItemStack(lootItem.getAmount());
+                                try {
+                                    AbstractItemStack abstractItem = mythicItem.get().generateItemStack(lootItem.getAmount());
+                                    item = BukkitAdapter.adapt(abstractItem);
+                                } catch (Exception e) {
+                                    plugin.getLogger().warning("Failed to create MythicMobs item: " + lootItem.getItemId() + " - " + e.getMessage());
+                                    e.printStackTrace();
+                                }
                             }
                         } catch (Exception e) {
                             plugin.getLogger().warning("Failed to create MythicMobs item: " + lootItem.getItemId() + " - " + e.getMessage());
