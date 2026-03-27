@@ -22,6 +22,8 @@ Optional:
 
 - [MythicMobs](https://www.spigotmc.org/resources/mythicmobs.5702/)
 - [MMOItems](https://www.spigotmc.org/resources/mmoitems.39267/)
+- [Nexo](https://polymart.org/product/6901/nexo)
+- [CraftEngine](https://modrinth.com/plugin/craftengine)
 - [Vault](https://www.spigotmc.org/resources/vault.34315/)
 
 ## Quick Start
